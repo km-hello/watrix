@@ -1,0 +1,26 @@
+{
+  "name": "watrik",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "typecheck": "vue-tsc --noEmit",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@lucide/vue": "1.70.0",
+    "@tailwindcss/vite": "4.3.5",
+    "echarts": "6.1.0",
+    "naive-ui": "2.45.3",
+    "tailwindcss": "4.3.5",
+    "vue": "3.5.45"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "6.0.10",
+    "typescript": "6.0.3",
+    "vite": "8.3.6",
+    "vue-tsc": "3.3.14"
+  }
+}

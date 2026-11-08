@@ -1,0 +1,182 @@
+@import "tailwindcss";
+
+/* 全局色彩与字体基础，组件样式通过变量保持一致。 */
+:root {
+  --ui-bg: #F7FAF7;
+  --ui-surface: #FFFFFF;
+  --ui-primary: #2F8C59;
+  --ui-chart: #40A970;
+  --ui-soft-green: #E9F6ED;
+  --ui-text: #1E3628;
+  --ui-muted: #718276;
+  --ui-border: #E1EBE3;
+  --ui-warning: #B7791F;
+  --ui-error: #C94A50;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ui-text);
+  background: var(--ui-bg);
+}
+
+/* 基础重置和键盘焦点指示；保留原生控件的可访问性。 */
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button, input, select, textarea { font: inherit; }
+:focus-visible { outline: 2px solid var(--ui-primary); outline-offset: 3px; }
+/* 页面布局与工具栏。 */
+.page-shell { max-width: 1248px; margin: 0 auto; padding: 24px; }
+.brand-header { display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 16px 24px; border: 1px solid var(--ui-border); border-radius: 16px; background: var(--ui-surface); }
+.brand-icon { color: var(--ui-primary); }
+.brand-name { font-size: 26px; font-weight: 700; line-height: 1; }
+.brand-icon, .brand-name { flex-shrink: 0; }
+.meter-name { min-width: 0; margin-left: 8px; padding-left: 20px; border-left: 1px solid var(--ui-border); color: var(--ui-muted); overflow-wrap: anywhere; }
+.header-actions { display: flex; flex-shrink: 0; gap: 8px; margin-left: auto; }
+.header-icon-button { flex-shrink: 0; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--ui-border); border-radius: 10px; background: var(--ui-surface); color: var(--ui-text); cursor: pointer; }
+.header-icon-button:hover:not(:disabled) { background: var(--ui-soft-green); }
+.header-icon-button:disabled { opacity: 0.5; cursor: default; }
+.refresh-spinning { animation: refresh-spin 1s linear infinite; }
+@keyframes refresh-spin { to { transform: rotate(360deg); } }
+.overview-update { display: inline-flex; align-items: center; gap: 8px; }
+.status-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--ui-muted); }
+.dot-success { background: var(--ui-chart); }
+.dot-warning { background: var(--ui-warning); }
+.refresh-feedback { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin: -8px 0 20px; }
+.refresh-feedback p { margin: 0; }
+.refresh-error { color: var(--ui-error); }
+.cooldown-note { color: var(--ui-muted); font-size: 13px; }
+.read-retry-button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--ui-border); border-radius: 10px; background: var(--ui-surface); color: var(--ui-primary); cursor: pointer; }
+.read-retry-button:disabled { opacity: 0.5; cursor: default; }
+.overview-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; margin: 24px 0; }
+h1 { margin: 0; font-size: 30px; font-weight: 700; line-height: 1.4; }
+h2 { margin: 0; font-size: 20px; font-weight: 650; line-height: 1.4; }
+/* 桌面卡片网格；各卡片的 grid 位置在移动端统一复位。 */
+.dashboard-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; }
+.dashboard-card { min-width: 0; padding: 24px; border: 1px solid var(--ui-border); border-radius: 16px; background: var(--ui-surface); box-shadow: 0 2px 8px rgb(30 54 40 / 2%); }
+/* 余额卡与统计摘要。 */
+.balance-card { grid-column: 2; grid-row: 1; min-height: 310px; display: flex; flex-direction: column; }
+.balance { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 12px 0 16px; font-size: 54px; font-weight: 700; line-height: 1.2; }
+.balance-value { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.balance-unit { font-size: 24px; font-weight: 500; }
+.balance-details { margin: 0; }
+.balance-details > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--ui-border); }
+.balance-details dd { min-width: 0; overflow-wrap: anywhere; text-align: right; }
+dt { color: var(--ui-muted); }
+dd { margin: 0; font-size: 18px; font-weight: 600; }
+.detail-unit { font-size: 13px; font-weight: 500; }
+.balance-status { margin: auto 0 0; padding: 10px 12px; border-radius: 10px; background: var(--ui-soft-green); color: var(--ui-muted); text-align: center; }
+.balance-timestamp { margin: 12px 0; font-size: 12px; color: var(--ui-muted); }
+.balance-request-error { margin: 0 0 12px; color: var(--ui-error); font-size: 13px; }
+.balance-skeleton { display: grid; gap: 12px; margin: 12px 0 20px; }
+.status-success { color: var(--ui-primary); }
+.status-warning { color: var(--ui-warning); background: #FFF6E5; }
+.summary-card { grid-column: 1 / -1; grid-row: 2; padding-top: 18px; padding-bottom: 18px; }
+.summary-values { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin: 0; }
+.summary-values > div { min-width: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 20px; padding: 0 24px; }
+.summary-values > div:first-child { padding-left: 0; border-right: 1px solid var(--ui-border); }
+.summary-values dd { min-width: 0; max-width: 100%; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; font-size: 24px; }
+.summary-number { min-width: 0; max-width: 100%; font: inherit; overflow-wrap: anywhere; }
+.summary-values dd span { font-size: 16px; font-weight: 500; }
+.quality-badge { padding: 4px 8px; min-height: 44px; border: 0; border-radius: 8px; background: var(--ui-soft-green); color: var(--ui-primary); font-size: 12px; font-weight: 500; cursor: pointer; }
+.quality-badge:hover { background: #DCEFE2; }
+.summary-detail { margin: 0; font-size: 13px; font-weight: 400; }
+.summary-request-error { margin: 12px 0 0; color: var(--ui-error); font-size: 13px; }
+/* 图表容器使用绝对定位画布，让 ResizeObserver 获取稳定的可用区域。 */
+.trend-card { grid-column: 1; grid-row: 1; min-height: 310px; display: flex; flex-direction: column; }
+.trend-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.trend-range { flex-shrink: 0; }
+.trend-metric-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.trend-metric-select { width: 140px; min-height: 44px; padding: 8px 12px; border: 1px solid var(--ui-border); border-radius: 10px; color: var(--ui-text); background: var(--ui-surface); cursor: pointer; }
+.trend-unit { color: var(--ui-muted); font-size: 13px; }
+.trend-plot { position: relative; flex: 1; min-height: 210px; }
+.trend-canvas { position: absolute; inset: 0; touch-action: pan-y; }
+.trend-overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center; pointer-events: none; }
+.trend-note { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 8px 0 0; color: var(--ui-muted); font-size: 12px; }
+.trend-request-error { margin: 8px 0 0; color: var(--ui-error); font-size: 13px; }
+/* 最近记录和历史抽屉共用表格，移动端改用可展开列表。 */
+.records-card { grid-column: 1 / -1; grid-row: 3; }
+.records-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.all-records-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; padding: 8px 0 8px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--ui-primary); cursor: pointer; }
+.records-table { width: 100%; margin-top: 20px; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.records-table th { padding: 12px 16px; background: var(--ui-soft-green); color: var(--ui-muted); text-align: left; font-weight: 500; }
+.records-table th:first-child { border-radius: 10px 0 0 10px; }
+.records-table th:last-child { border-radius: 0 10px 10px 0; }
+.records-table td { padding: 14px 16px; border-bottom: 1px solid var(--ui-border); vertical-align: top; overflow-wrap: anywhere; }
+.records-table tbody tr:last-child td { border-bottom: 0; }
+.record-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.record-tag { padding: 2px 6px; border-radius: 6px; background: var(--ui-soft-green); color: var(--ui-primary); font-size: 12px; font-weight: 400; }
+.records-mobile { display: none; }
+.records-error { margin: 18px 0 0; color: var(--ui-error); }
+.records-skeleton { display: grid; gap: 16px; margin-top: 20px; }
+.records-empty { display: grid; min-height: 128px; place-items: center; text-align: center; }
+.empty-state { margin: 0; color: var(--ui-muted); }
+/* 设置弹窗和历史抽屉共享的关闭按钮。 */
+.dialog-close { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--ui-text); cursor: pointer; }
+.dialog-close:hover { background: var(--ui-soft-green); }
+.dialog-close:disabled { opacity: 0.5; cursor: default; }
+/* 抽屉头部固定，记录区域单独滚动。 */
+.history-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--ui-text); background: var(--ui-surface); }
+.history-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 16px; padding: 20px 24px 12px; }
+.history-header h2 { font-size: 24px; }
+.history-ranges { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); flex-shrink: 0; gap: 4px; margin: 0 24px 16px; padding: 3px; border: 1px solid var(--ui-border); border-radius: 12px; }
+.history-ranges label { min-width: 0; cursor: pointer; }
+.history-ranges span { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 12px; border-radius: 8px; color: var(--ui-muted); }
+.history-ranges input:checked + span { color: var(--ui-text); background: var(--ui-soft-green); }
+.history-ranges input:focus-visible + span { outline: 2px solid var(--ui-primary); outline-offset: 1px; }
+.history-body { flex: 1; min-height: 0; overflow: auto; padding: 0 24px 24px; }
+/* 抽屉复用记录表格时压缩间距，不改变首页记录布局。 */
+.history-body .records-table { margin-top: 0; }
+.history-body .records-table th, .history-body .records-table td { padding: 12px; }
+.history-body .records-mobile { margin-top: 0; }
+.history-pagination { display: flex; justify-content: center; margin-top: 20px; }
+
+/* 窄屏转为单列卡片与记录详情列表，避免表格横向溢出。 */
+@media (max-width: 767px) {
+  .page-shell { padding: 16px; }
+  .brand-header { flex-wrap: wrap; padding: 16px 18px; }
+  .meter-name { order: 1; flex-basis: 100%; margin: 0; padding: 0; border: 0; }
+  .overview-heading { margin: 24px 0 20px; gap: 8px 16px; }
+  h1 { font-size: 28px; }
+  .dashboard-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .dashboard-card { grid-column: 1; grid-row: auto; padding: 18px; }
+  .balance-card { min-height: 0; }
+  .balance { font-size: 46px; }
+  .balance-details { display: grid; grid-template-columns: 1fr 1fr; padding-top: 12px; border-top: 1px solid var(--ui-border); }
+  .balance-details > div { flex-wrap: wrap; gap: 8px; padding: 0 12px 0 0; border-top: 0; }
+  .balance-details > div + div { padding: 0 0 0 12px; border-left: 1px solid var(--ui-border); }
+  .balance-details dd { font-size: 16px; }
+  .balance-status { margin-top: 18px; }
+  .summary-card { padding: 18px 12px; }
+  .summary-values > div { flex-wrap: wrap; gap: 4px 12px; padding: 0 12px; }
+  .summary-values > div:first-child { padding-left: 6px; }
+  .summary-values dt { font-size: 13px; }
+  .summary-values dd { font-size: 22px; }
+  .summary-values dd span { font-size: 14px; }
+  .trend-card { min-height: 310px; }
+  .records-desktop { display: none; }
+  .records-mobile { display: block; margin-top: 18px; }
+  .records-mobile-heading, .record-details summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: baseline; gap: 12px; padding: 12px; }
+  .records-mobile-heading { border-radius: 10px; background: var(--ui-soft-green); color: var(--ui-muted); }
+  .records-list { margin: 0; padding: 0; list-style: none; }
+  .record-details { border-bottom: 1px solid var(--ui-border); }
+  .records-list li:last-child .record-details { border-bottom: 0; }
+  .record-details summary { min-height: 44px; cursor: pointer; list-style: none; }
+  .record-details summary::-webkit-details-marker { display: none; }
+  .record-details summary time, .record-remaining { min-width: 0; overflow-wrap: anywhere; }
+  .record-remaining { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-weight: 600; }
+  .record-chevron { flex-shrink: 0; color: var(--ui-muted); }
+  .record-details[open] .record-chevron { transform: rotate(180deg); }
+  .record-detail-body { padding: 0 12px 16px; }
+  .record-detail-body dl { margin: 12px 0 0; }
+  .record-detail-body dl > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 8px; }
+  .record-detail-body dd { min-width: 0; max-width: 100%; font-size: 14px; overflow-wrap: anywhere; }
+  .record-note { margin: 12px 0 0; color: var(--ui-muted); font-size: 12px; }
+  .history-header { padding: 16px 18px 12px; }
+  .history-ranges { margin-right: 18px; margin-left: 18px; }
+  .history-body { padding-right: 18px; padding-left: 18px; }
+}
+
+/* 系统要求减少动态效果时同步关闭页面动画与平滑滚动。 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
