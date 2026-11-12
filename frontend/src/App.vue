@@ -173,7 +173,7 @@ const theme: GlobalThemeOverrides = {
     <div class="page-shell">
       <header class="brand-header">
         <Zap :size="28" aria-hidden="true" class="brand-icon" />
-        <span class="brand-name">Watrik</span>
+        <span class="brand-name">Watrix</span>
         <span v-if="dashboard?.meter_name" class="meter-name">{{ dashboard.meter_name }}</span>
         <div class="header-actions">
           <button class="header-icon-button" type="button" aria-label="刷新" :aria-busy="collecting" :disabled="collecting || retrying || cooldownSeconds > 0" :title="collecting ? '正在刷新' : cooldownSeconds ? `${cooldownSeconds} 秒后可再次刷新` : '刷新'" @click="refresh">

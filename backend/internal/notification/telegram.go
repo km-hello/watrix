@@ -41,7 +41,7 @@ func NewTelegram(token string, transport http.RoundTripper) *Telegram {
 }
 
 // String 返回脱敏描述，防止格式化日志意外输出 token。
-func (t *Telegram) String() string { return "Watrik Telegram client (token redacted)" }
+func (t *Telegram) String() string { return "Watrix Telegram client (token redacted)" }
 
 // GoString 为 Go 语法格式化同样提供脱敏描述。
 func (t *Telegram) GoString() string { return t.String() }

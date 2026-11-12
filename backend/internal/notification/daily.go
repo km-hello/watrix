@@ -84,7 +84,7 @@ func (s *Service) dailyMessage(ctx context.Context, now time.Time) (string, erro
 			usage += "（部分数据）"
 		}
 	}
-	text := fmt.Sprintf("Watrik · 用电日报 · %s\n剩余：%s\n今日估算：%s\n数据截至：%s", now.In(s.location).Format("2006-01-02"), remaining, usage, asOf)
+	text := fmt.Sprintf("Watrix · 用电日报 · %s\n剩余：%s\n今日估算：%s\n数据截至：%s", now.In(s.location).Format("2006-01-02"), remaining, usage, asOf)
 	if len(warnings) > 0 {
 		text += "\n" + strings.Join(warnings, " · ")
 	}

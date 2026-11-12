@@ -88,7 +88,7 @@ func run() error {
 		cancelCollection()
 		<-collectionDone
 	}()
-	log.Print("Watrik HTTP service starting")
+	log.Print("Watrix HTTP service starting")
 	select {
 	case err := <-done:
 		if errors.Is(err, http.ErrServerClosed) {
@@ -129,11 +129,11 @@ func logTaskError(task string, err error) {
 	matched := false
 	for _, entry := range codes {
 		if errors.Is(err, entry.target) {
-			log.Printf("Watrik task=%s error=%s", task, entry.code)
+			log.Printf("Watrix task=%s error=%s", task, entry.code)
 			matched = true
 		}
 	}
 	if !matched {
-		log.Printf("Watrik task=%s error=unclassified", task)
+		log.Printf("Watrix task=%s error=unclassified", task)
 	}
 }
