@@ -56,6 +56,6 @@ func (s *Service) low(ctx context.Context, now time.Time, settings database.Sett
 	if run == nil {
 		return nil
 	}
-	text := fmt.Sprintf("Watrik · 电量不足\n剩余：%s kWh（提醒阈值：%s kWh）\n请及时充值。\n数据截至：%s", kwhText(remaining), kwhText(threshold), time.UnixMilli(current.CollectedAtMS).In(s.location).Format("2006-01-02 15:04"))
+	text := fmt.Sprintf("Watrix · 电量不足\n剩余：%s kWh（提醒阈值：%s kWh）\n请及时充值。\n数据截至：%s", kwhText(remaining), kwhText(threshold), time.UnixMilli(current.CollectedAtMS).In(s.location).Format("2006-01-02 15:04"))
 	return s.sendClaimed(ctx, *run, settings, text)
 }

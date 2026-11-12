@@ -9,14 +9,6 @@ import { draftFromSettings, validateNotification, type NotificationDraft } from 
 
 const show = defineModel<boolean>('show', { required: true })
 const emit = defineEmits<{ saved: [] }>()
-const props = defineProps<{
-  refresh: () => Promise<void>
-  collecting: boolean
-  retrying: boolean
-  cooldownSeconds: number
-  refreshMessage: string | null
-  refreshFailed: boolean
-}>()
 const settingsDialog = ref<HTMLDivElement | null>(null)
 const continueButton = ref<HTMLButtonElement | null>(null)
 const confirmOpen = ref(false)
@@ -74,13 +66,6 @@ async function loadSettings(resetDraft = false) {
   } finally {
     if (current === sequence) loading.value = false
   }
-}
-
-/** 复用页面采集流程，再更新设置中的采集信息，不覆盖尚未保存的通知草稿。 */
-async function refreshCollection() {
-  if (props.collecting || props.retrying || props.cooldownSeconds || loading.value || writeBusy.value) return
-  await props.refresh()
-  if (show.value && !writeBusy.value && !saveUncertain.value) await loadSettings()
 }
 
 /** 统一处理取消、遮罩和 Escape 关闭请求；写入中阻止关闭，脏草稿需先确认。 */
@@ -245,11 +230,6 @@ onUnmounted(() => {
                 <div><dt>时区</dt><dd>{{ settings.timezone }}</dd></div>
                 <div><dt>最近成功时间</dt><dd>{{ settings.collection.last_success_at ? formatTimestamp(settings.collection.last_success_at, settings.timezone) : '—' }}</dd></div>
               </dl>
-              <div class="settings-refresh">
-                <button type="button" class="read-retry-button" aria-label="立即刷新" :disabled="collecting || retrying || cooldownSeconds > 0 || loading || writeBusy" :aria-busy="collecting" @click="refreshCollection">{{ collecting ? '正在刷新' : '立即刷新' }}</button>
-                <span v-if="cooldownSeconds" class="cooldown-note">{{ cooldownSeconds }} 秒后可再次刷新</span>
-              </div>
-              <p v-if="refreshMessage" class="settings-refresh-message" :class="{ 'refresh-error': refreshFailed }" :role="refreshFailed ? 'alert' : 'status'">{{ refreshMessage }}</p>
             </template>
           </div>
         </div>
@@ -262,29 +242,28 @@ onUnmounted(() => {
               <p v-if="attempted && validation?.errors.telegram_chat_id" id="chat-error" class="field-error" role="alert">{{ validation.errors.telegram_chat_id }}</p>
             </div>
             <div class="notification-field recipient-field">
-              <label for="telegram-topic">Topic ID（可选）</label>
+              <label for="telegram-topic">Topic ID<span class="optional-label">可选</span></label>
               <input id="telegram-topic" v-model="draft.telegram_topic_id" type="text" inputmode="numeric" autocomplete="off" :disabled="writeBusy || loading" :aria-invalid="attempted && !!validation?.errors.telegram_topic_id" :aria-describedby="attempted && validation?.errors.telegram_topic_id ? 'topic-error' : undefined">
               <p v-if="attempted && validation?.errors.telegram_topic_id" id="topic-error" class="field-error" role="alert">{{ validation.errors.telegram_topic_id }}</p>
             </div>
             <div class="notification-section">
-              <div class="notification-switch-row"><label for="daily-enabled">每日提醒</label><input id="daily-enabled" v-model="draft.daily_enabled" class="settings-switch" type="checkbox" role="switch" :disabled="writeBusy || loading"></div>
+              <label class="notification-label" for="daily-enabled">每日提醒</label>
               <div class="notification-field notification-control">
                 <label for="daily-time" class="sr-only">提醒时间</label>
                 <input id="daily-time" v-model="draft.daily_time" type="time" step="60" :disabled="writeBusy || loading" :aria-invalid="attempted && !!validation?.errors.daily_time" :aria-describedby="attempted && validation?.errors.daily_time ? 'time-error' : undefined">
                 <p v-if="attempted && validation?.errors.daily_time" id="time-error" class="field-error" role="alert">{{ validation.errors.daily_time }}</p>
               </div>
+              <input id="daily-enabled" v-model="draft.daily_enabled" class="settings-switch" type="checkbox" role="switch" :disabled="writeBusy || loading">
             </div>
             <div class="notification-section">
-              <div class="notification-switch-row"><label for="low-enabled">低电量提醒</label><input id="low-enabled" v-model="draft.low_enabled" class="settings-switch" type="checkbox" role="switch" :disabled="writeBusy || loading"></div>
+              <label class="notification-label" for="low-enabled">低电量提醒</label>
               <div class="notification-field notification-control">
                 <label for="low-threshold" class="sr-only">低电量阈值</label>
                 <div class="threshold-input"><input id="low-threshold" v-model="draft.low_threshold_kwh" type="text" inputmode="decimal" autocomplete="off" :disabled="writeBusy || loading" :aria-invalid="attempted && !!validation?.errors.low_threshold_kwh" :aria-describedby="attempted && validation?.errors.low_threshold_kwh ? 'threshold-error' : undefined"><span>kWh</span></div>
                 <p v-if="attempted && validation?.errors.low_threshold_kwh" id="threshold-error" class="field-error" role="alert">{{ validation.errors.low_threshold_kwh }}</p>
               </div>
+              <input id="low-enabled" v-model="draft.low_enabled" class="settings-switch" type="checkbox" role="switch" :disabled="writeBusy || loading">
             </div>
-            <button type="button" class="read-retry-button" aria-label="发送测试消息" :disabled="!canTest" :aria-busy="testing" @click="sendTest">{{ testing ? '正在发送' : '发送测试消息' }}</button>
-            <p v-if="dirty" class="notification-hint">请先保存修改，再发送测试消息。</p>
-            <p v-else-if="!settings.telegram_token_configured || !settings.telegram_chat_id.trim()" class="notification-hint">请先配置服务端 Telegram 并保存 Chat ID。</p>
             <p v-if="testMessage" class="notification-feedback" :class="{ 'refresh-error': testFailed }" :role="testFailed ? 'alert' : 'status'">{{ testMessage }}</p>
           </form>
         </div>
@@ -293,6 +272,7 @@ onUnmounted(() => {
         <p v-if="saveMessage && activeTab === 'notification'" class="notification-feedback" :class="{ 'refresh-error': saveFailed }" :role="saveFailed ? 'alert' : 'status'">{{ saveMessage }}</p>
         <button v-if="saveUncertain && activeTab === 'notification'" type="button" class="read-retry-button" :disabled="loading" @click="loadSettings()">重新读取设置</button>
         <div class="settings-footer-actions">
+          <button v-if="activeTab === 'notification' && settings && draft" type="button" class="read-retry-button settings-test" aria-label="发送测试消息" :disabled="!canTest" :aria-busy="testing" @click="sendTest">{{ testing ? '正在发送' : '发送测试消息' }}</button>
           <button type="button" class="read-retry-button" :aria-label="activeTab === 'notification' ? '取消' : '关闭'" :disabled="writeBusy" @click="requestClose">{{ activeTab === 'notification' ? '取消' : '关闭' }}</button>
           <button v-if="activeTab === 'notification'" type="submit" form="notification-form" class="settings-save" aria-label="保存设置" :aria-busy="saving" :disabled="!dirty || writeBusy || loading || saveUncertain">{{ saving ? '正在保存' : '保存设置' }}</button>
         </div>
@@ -332,27 +312,27 @@ onUnmounted(() => {
 .settings-collection { margin: 0; }
 .settings-collection > div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--ui-border); }
 .settings-collection dd { min-width: 0; font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
-.settings-refresh { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
-.settings-refresh-message { margin: 12px 0 0; }
 .settings-footer { display: flex; flex-direction: column; align-items: stretch; gap: 12px; flex-shrink: 0; padding: 20px 24px; }
-.settings-footer-actions { display: flex; justify-content: flex-end; gap: 12px; }
+.settings-footer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+.settings-test { margin-right: auto; }
 .settings-read-status { padding: 0 24px; }
 .notification-form { padding-bottom: 4px; }
-.telegram-status { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+.telegram-status { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--ui-border); }
 .telegram-status strong { font-size: 18px; }
 .telegram-status span { color: var(--ui-muted); font-size: 13px; }
 .notification-field { display: grid; gap: 8px; margin-bottom: 16px; }
 .notification-field > label { color: var(--ui-muted); }
-.recipient-field { grid-template-columns: 120px minmax(0, 1fr); gap: 8px 16px; }
-.recipient-field > label { align-self: center; }
+.recipient-field { grid-template-columns: 104px minmax(0, 1fr); gap: 8px 16px; }
+.recipient-field > label { align-self: center; color: var(--ui-text); font-weight: 600; }
+.optional-label { display: block; color: var(--ui-muted); font-size: 12px; font-weight: 400; }
 .recipient-field .field-error { grid-column: 2; }
-.notification-control { width: 260px; max-width: 100%; }
+.notification-control { min-width: 0; margin-bottom: 0; }
 .notification-field input { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--ui-border); border-radius: 10px; background: var(--ui-surface); color: var(--ui-text); }
 .notification-field input[aria-invalid="true"] { border-color: var(--ui-error); }
 .notification-field input:disabled, .settings-switch:disabled { opacity: 0.6; }
-.notification-section { padding-top: 16px; border-top: 1px solid var(--ui-border); }
-.notification-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; margin-bottom: 12px; }
-.notification-switch-row label { display: flex; align-items: center; align-self: stretch; flex: 1; cursor: pointer; font-size: 16px; font-weight: 600; }
+.notification-section { display: grid; grid-template-columns: 104px minmax(0, 1fr) 44px; align-items: start; gap: 16px; padding: 16px 0; border-top: 1px solid var(--ui-border); }
+.notification-label { display: flex; align-items: center; min-height: 44px; cursor: pointer; font-size: 16px; font-weight: 600; }
+.notification-section:last-of-type { border-bottom: 1px solid var(--ui-border); }
 .settings-switch { appearance: none; position: relative; flex-shrink: 0; width: 44px; height: 44px; margin: 0; border: 0; border-radius: 10px; background: transparent; cursor: pointer; }
 .settings-switch::before { content: ''; position: absolute; width: 44px; height: 24px; top: 10px; left: 0; border: 1px solid var(--ui-border); border-radius: 20px; background: var(--ui-border); }
 .settings-switch::after { content: ''; position: absolute; width: 18px; height: 18px; top: 13px; left: 3px; border-radius: 50%; background: var(--ui-surface); }
@@ -362,7 +342,6 @@ onUnmounted(() => {
 .threshold-input input { border: 0; }
 .threshold-input span { padding: 0 12px; color: var(--ui-muted); }
 .field-error { margin: 0; color: var(--ui-error); font-size: 12px; }
-.notification-hint { margin: 12px 0 0; color: var(--ui-muted); font-size: 12px; }
 .notification-feedback { margin: 12px 0 0; font-size: 13px; overflow-wrap: anywhere; }
 .settings-footer .notification-feedback { margin: 0; }
 .settings-save { min-height: 44px; padding: 8px 16px; border: 1px solid var(--ui-primary); border-radius: 10px; background: var(--ui-primary); color: white; cursor: pointer; }
@@ -373,8 +352,21 @@ onUnmounted(() => {
   .settings-collection > div { grid-template-columns: 104px minmax(0, 1fr); gap: 12px; }
   .settings-footer { padding: 16px 18px; }
   .settings-read-status { padding: 0 18px; }
-  .recipient-field { grid-template-columns: minmax(0, 1fr); }
-  .recipient-field .field-error { grid-column: 1; }
+}
+@media (max-width: 420px) {
+  .recipient-field { grid-template-columns: 88px minmax(0, 1fr); gap: 8px 12px; }
+  .notification-section { grid-template-columns: 88px minmax(0, 1fr) 44px; gap: 12px; }
+  .notification-label { font-size: 14px; }
+  .notification-field input { padding-right: 8px; padding-left: 8px; }
+  .threshold-input span { padding: 0 8px; }
+  .settings-footer-actions { gap: 8px; }
+  .settings-footer-actions > button { padding-right: 10px; padding-left: 10px; }
+}
+@media (max-width: 359px) {
+  .notification-section { grid-template-columns: minmax(0, 1fr) 44px; }
+  .notification-control { grid-column: 1; grid-row: 2; }
+  .notification-section > .settings-switch { grid-column: 2; grid-row: 1; }
+  .settings-test { flex-basis: 100%; }
 }
 .settings-confirm-dialog { width: 400px; }
 .settings-confirm-description { margin: 0; padding: 0 24px 12px; overflow: auto; }

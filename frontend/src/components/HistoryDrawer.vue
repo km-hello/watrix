@@ -61,7 +61,7 @@ onUnmounted(() => { sequence++; request?.abort() })
         <label><input v-model="range" class="sr-only" type="radio" name="history-range" value="30d"><span>30天</span></label>
       </fieldset>
       <div class="history-body" :aria-busy="loading">
-        <RecordsTable v-if="page?.items.length" :items="page.items" :timezone="page.timezone" show-balance />
+        <RecordsTable v-if="page?.items.length" :items="page.items" :timezone="page.timezone" />
         <div v-else-if="loading" class="records-skeleton"><NSkeleton v-for="row in 4" :key="row" height="32px" width="100%" :sharp="false" aria-hidden="true" /><span class="sr-only" role="status">正在加载采集记录</span></div>
         <p v-else-if="!error" class="records-empty empty-state">所选范围暂无采集记录</p>
         <p v-if="error" class="records-error" role="alert">{{ error }}<span v-if="page?.items.length">，已保留已加载记录</span></p>

@@ -38,7 +38,7 @@ func testNotificationHandler(deps Dependencies) http.HandlerFunc {
 			return
 		}
 		// 网络结果不确定时不能宣称失败后可安全重发，否则可能重复通知。
-		err = deps.Telegram.Send(r.Context(), settings.TelegramChatID, settings.TelegramTopicID, "Watrik · Telegram 测试成功")
+		err = deps.Telegram.Send(r.Context(), settings.TelegramChatID, settings.TelegramTopicID, "Watrix · Telegram 测试成功")
 		if err == nil {
 			w.WriteHeader(http.StatusNoContent)
 			return

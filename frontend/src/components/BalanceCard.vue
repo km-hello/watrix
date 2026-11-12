@@ -1,10 +1,39 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { NSkeleton } from 'naive-ui'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { NSkeleton, NPopover } from 'naive-ui'
+import { Info } from '@lucide/vue'
 import { formatNumber, formatTimestamp } from '../format'
 import type { Dashboard } from '../types/api'
 
 const props = defineProps<{ dashboard: Dashboard | null; loading: boolean; error: string | null }>()
+const timestampOpen = ref(false)
+const timestampTrigger = ref<HTMLButtonElement | null>(null)
+let timestampPinned = false
+
+function closeTimestamp() {
+  timestampOpen.value = false
+  timestampPinned = false
+}
+
+function toggleTimestamp() {
+  timestampPinned = !timestampPinned
+  timestampOpen.value = timestampPinned
+}
+
+function handleClickOutside(event: MouseEvent) {
+  if (event.target instanceof Node && timestampTrigger.value?.contains(event.target)) return
+  closeTimestamp()
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Escape' || !timestampOpen.value) return
+  closeTimestamp()
+  event.preventDefault()
+  event.stopPropagation()
+}
+
+onMounted(() => window.addEventListener('keydown', handleKeydown, true))
+onUnmounted(() => window.removeEventListener('keydown', handleKeydown, true))
 const current = computed(() => props.dashboard?.current)
 // 先处理过期和空数据，再展示低量提醒，读取错误在独立提示中呈现。
 const status = computed(() => {
@@ -18,7 +47,17 @@ const status = computed(() => {
 
 <template>
   <section class="dashboard-card balance-card" aria-labelledby="balance-title" :aria-busy="loading">
-    <h2 id="balance-title">当前剩余</h2>
+    <div class="balance-heading">
+      <h2 id="balance-title">当前剩余</h2>
+      <NPopover v-if="current && dashboard" :show="timestampOpen" trigger="manual" @clickoutside="handleClickOutside" placement="top-start" style="max-width: calc(100vw - 32px)">
+        <template #trigger>
+          <button ref="timestampTrigger" type="button" class="balance-time-trigger" :aria-expanded="timestampOpen" aria-label="查看数据更新时间" :aria-describedby="timestampOpen ? 'balance-timestamp' : undefined" @pointerenter="($event.pointerType === 'mouse') && (timestampOpen = true)" @click="toggleTimestamp" @blur="closeTimestamp">
+            <Info :size="15" aria-hidden="true" />
+          </button>
+        </template>
+        <span id="balance-timestamp">数据截至 {{ formatTimestamp(current.collected_at, dashboard.timezone) }}</span>
+      </NPopover>
+    </div>
     <div v-if="loading && !current" class="balance-skeleton" aria-hidden="true">
       <NSkeleton height="65px" width="65%" :sharp="false" />
       <NSkeleton height="24px" width="100%" :sharp="false" />
@@ -31,7 +70,6 @@ const status = computed(() => {
         <div><dt>电价</dt><dd>¥ {{ current ? formatNumber(current.unit_price_yuan_per_kwh, 4) : '—' }}<span class="detail-unit">/kWh</span></dd></div>
       </dl>
     </template>
-    <p v-if="current && dashboard" class="balance-timestamp">数据截至 {{ formatTimestamp(current.collected_at, dashboard.timezone) }}</p>
     <p v-if="error" class="balance-request-error" role="alert">{{ error }}</p>
     <p class="balance-status" :class="`status-${status.tone}`" role="status">{{ status.text }}</p>
   </section>

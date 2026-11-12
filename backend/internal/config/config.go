@@ -24,7 +24,7 @@ type Config struct {
 }
 
 // String 返回脱敏说明，防止常规格式化日志输出配置中的凭据。
-func (c Config) String() string { return "Watrik configuration (secrets redacted)" }
+func (c Config) String() string { return "Watrix configuration (secrets redacted)" }
 
 // GoString 为 Go 语法格式化输出提供同样的脱敏保护。
 func (c Config) GoString() string { return c.String() }

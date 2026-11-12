@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { NRadioButton, NRadioGroup } from 'naive-ui'
+import { NPopover, NRadioButton, NRadioGroup } from 'naive-ui'
+import { Info } from '@lucide/vue'
 import { init, use, type EChartsType } from 'echarts/core'
 import { BarChart, LineChart } from 'echarts/charts'
 import { AriaComponent, GridComponent, MarkPointComponent, TooltipComponent } from 'echarts/components'
@@ -21,6 +22,17 @@ const points = computed(() => props.series?.points ?? [])
 const validPoints = computed(() => points.value.filter(point => point.value !== null))
 const missingCount = computed(() => points.value.filter(point => point.value === null).length)
 const partialCount = computed(() => points.value.filter(point => point.quality === 'partial').length)
+// 手动采集不计入应采区间，避免刷新次数稀释缺失占比。
+const qualityTotal = computed(() => metric.value === 'remaining' && range.value === '24h'
+  ? points.value.filter(point => point.kind === 'scheduled').length
+  : points.value.length)
+const availableCount = computed(() => qualityTotal.value - missingCount.value)
+const qualityUnit = computed(() => range.value === '24h' ? '区间' : '天数')
+function qualityRatio(count: number): string {
+  const total = qualityTotal.value
+  const percent = new Intl.NumberFormat('zh-CN', { style: 'percent', maximumFractionDigits: 1 }).format(total ? count / total : 0)
+  return `${count} / ${total}（${percent}）`
+}
 const rechargeCount = computed(() => points.value.filter(point => point.recharge).length)
 // 单个点不足以表达趋势；剩余电量以定时样本数量判断，避免手动刷新制造连续趋势。
 const waiting = computed(() => validPoints.value.length > 0 && (metric.value === 'remaining'
@@ -28,18 +40,26 @@ const waiting = computed(() => validPoints.value.length > 0 && (metric.value ===
   : validPoints.value.length < 2))
 const description = computed(() => {
   const label = metric.value === 'remaining' ? '剩余电量' : '估算用电'
-  return `${label}趋势，${validPoints.value.length} 个可用数据点，${missingCount.value} 个缺失区间，${partialCount.value} 个部分数据区间，${rechargeCount.value} 处充值变化。缺失区间不按零计算。`
+  return `${label}趋势，${range.value === '24h' ? '有效区间' : '可用天数'}：${qualityRatio(availableCount.value)}，缺失${qualityUnit.value}：${qualityRatio(missingCount.value)}，可用数据点：${validPoints.value.length}，充值变化：${rechargeCount.value} ${range.value === '24h' ? '处' : '天'}`
 })
 const emptyMessage = computed(() => props.error || (props.loading ? '正在加载趋势' : '暂无可用趋势数据'))
+const qualityOpen = ref(false)
+const qualityLabel = computed(() => {
+  if (missingCount.value || partialCount.value) return validPoints.value.length ? '部分数据' : '缺失数据'
+  if (waiting.value) return '等待采集'
+  return rechargeCount.value ? '充值变化' : ''
+})
+
+watch([range, metric, () => props.series], () => { qualityOpen.value = false })
 
 /** 按业务时区描述数据点及质量，null 保留为缺失，覆盖率沿用后端计算结果。 */
 function pointTooltip(point: SeriesPoint, timezone: string): string {
   const lines = [formatTimestamp(point.timestamp, timezone), `${point.value === null ? '—' : formatNumber(point.value)} kWh`]
-  if (point.quality === 'partial') lines.push('部分数据')
-  if (point.reason === 'gap') lines.push('采集缺失，无法完整估算')
+  if (point.value === null) lines.push('缺失数据')
+  else if (point.quality === 'partial') lines.push('部分数据')
   if (point.reason === 'recharge_or_adjustment' || point.recharge) lines.push('充值变化或余额调整')
   if (point.coverage !== undefined) {
-    lines.push(`有效区间 ${point.valid_intervals ?? 0} / ${point.expected_intervals ?? 0}，覆盖率 ${Math.round(point.coverage * 100)}%`)
+    lines.push(`有效区间：${point.valid_intervals ?? 0} / ${point.expected_intervals ?? 0}（${Math.round(point.coverage * 100)}%）`)
   }
   return lines.join('\n')
 }
@@ -70,7 +90,7 @@ function renderChart() {
     color: ['#40A970'],
     textStyle: { fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif' },
     aria: { enabled: true, label: { description: description.value } },
-    grid: { left: 12, right: 16, top: 26, bottom: 12, containLabel: true },
+    grid: { left: 12, right: 16, top: 40, bottom: 12, containLabel: true },
     tooltip: {
       // 使用 Canvas 富文本展示提示，响应内容不会作为 HTML 插入页面。
       trigger: 'axis', triggerOn: 'mousemove|click', confine: true, renderMode: 'richText',
@@ -124,32 +144,39 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="dashboard-card trend-card" aria-labelledby="trend-title" :aria-busy="loading">
+  <section class="dashboard-card trend-card" aria-labelledby="trend-title" :aria-busy="loading" @keydown.esc.stop="qualityOpen = false">
     <div class="trend-header">
-      <h2 id="trend-title">用电趋势</h2>
-      <NRadioGroup v-model:value="range" class="trend-range" name="trend-range" aria-label="趋势时间范围" size="large" :theme-overrides="{ buttonHeightLarge: '44px' }">
-        <NRadioButton value="24h">24小时</NRadioButton><NRadioButton value="7d">7天</NRadioButton><NRadioButton value="30d">30天</NRadioButton>
-      </NRadioGroup>
-    </div>
-    <div class="trend-metric-row">
-      <select v-model="metric" class="trend-metric-select" aria-label="趋势指标">
-        <option value="remaining">剩余电量</option>
-        <option value="consumption">估算用电</option>
-      </select>
-      <span class="trend-unit">kWh</span>
+      <div class="trend-heading">
+        <h2 id="trend-title">用电趋势</h2>
+        <NPopover v-if="qualityLabel" v-model:show="qualityOpen" trigger="click" placement="bottom-start" :width="280" style="max-width: calc(100vw - 32px)">
+          <template #trigger>
+            <button type="button" class="trend-quality" :aria-expanded="qualityOpen" :aria-label="`${qualityLabel}，查看详情`"><Info :size="15" aria-hidden="true" /><span class="trend-quality-label">{{ qualityLabel }}</span></button>
+          </template>
+          <div class="trend-quality-detail">
+            <p>{{ range === '24h' ? '有效区间' : '可用天数' }}：{{ qualityRatio(availableCount) }}</p>
+            <p v-if="missingCount">缺失{{ qualityUnit }}：{{ qualityRatio(missingCount) }}</p>
+            <p v-if="waiting && range === '24h'">可用数据点：{{ validPoints.length }}</p>
+            <p v-if="rechargeCount">充值变化：{{ rechargeCount }} {{ range === '24h' ? '处' : '天' }}</p>
+          </div>
+        </NPopover>
+      </div>
+      <div class="trend-controls">
+        <select v-model="metric" class="trend-metric-select" aria-label="趋势指标">
+          <option value="remaining">剩余电量</option>
+          <option value="consumption">估算用电</option>
+        </select>
+        <NRadioGroup v-model:value="range" class="trend-range" name="trend-range" aria-label="趋势时间范围" :theme-overrides="{ buttonHeightMedium: '32px', fontSizeMedium: '13px', buttonColorActive: '#E9F6ED' }">
+          <NRadioButton value="24h">24小时</NRadioButton><NRadioButton value="7d">7天</NRadioButton><NRadioButton value="30d">30天</NRadioButton>
+        </NRadioGroup>
+      </div>
     </div>
     <p v-if="error && validPoints.length" class="trend-request-error" role="alert">{{ error }}，已保留上次趋势</p>
     <p v-else-if="loading && validPoints.length" class="trend-note" role="status">正在读取最新趋势</p>
     <div class="trend-plot">
+      <span class="trend-unit" aria-hidden="true">kWh</span>
       <div ref="chartElement" class="trend-canvas" role="img" :aria-label="description" />
       <p v-if="!validPoints.length" class="trend-overlay empty-state" :role="error ? 'alert' : 'status'">{{ emptyMessage }}</p>
     </div>
-    <p v-if="waiting || missingCount || partialCount || rechargeCount" class="trend-note">
-      <span v-if="waiting">等待更多采集数据</span>
-      <span v-if="missingCount">含缺失区间<span v-if="metric === 'consumption'">，— 表示无法估算</span></span>
-      <span v-if="partialCount">含部分数据</span>
-      <span v-if="rechargeCount">含充值变化</span>
-    </p>
     <p class="sr-only">{{ description }}</p>
   </section>
 </template>
