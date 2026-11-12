@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { NConfigProvider, NGlobalStyle, type GlobalThemeOverrides } from 'naive-ui'
+import { NTooltip, useMessage, type MessageReactive, type MessageType } from 'naive-ui'
 import { RefreshCw, Settings as SettingsIcon, Zap } from '@lucide/vue'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, h, onMounted, onUnmounted, ref, watch } from 'vue'
 import BalanceCard from './components/BalanceCard.vue'
 import UsageSummaryCard from './components/UsageSummaryCard.vue'
 import TrendChart from './components/TrendChart.vue'
@@ -9,7 +9,6 @@ import RecentReadings from './components/RecentReadings.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import HistoryDrawer from './components/HistoryDrawer.vue'
 import { ApiError, collect, getDashboard, getReadings, getSeries } from './api'
-import { formatTimestamp } from './format'
 import type { SeriesMetric, SeriesRange } from './types/api'
 import { useReadRequest } from './useReadRequest'
 
@@ -18,11 +17,12 @@ const historyOpen = ref(false)
 const range = ref<SeriesRange>('24h')
 const metric = ref<SeriesMetric>('remaining')
 const { data: dashboard, loading, error, load: loadDashboard } = useReadRequest(getDashboard)
-const { data: readings, loading: readingsLoading, error: readingsError, load: loadReadings } = useReadRequest(signal => getReadings({}, signal))
+const { data: readings, loading: readingsLoading, error: readingsError, load: loadReadings } = useReadRequest(signal => getReadings({ limit: 6 }, signal))
 const { data: series, loading: seriesLoading, error: seriesError, load: loadSeries } = useReadRequest(signal => getSeries(range.value, metric.value, signal))
 const collecting = ref(false)
-const refreshMessage = ref<string | null>(null)
-const refreshFailed = ref(false)
+const collectUncertain = ref(false)
+const message = useMessage()
+let feedback: MessageReactive | undefined
 const retrying = ref(false)
 const cooldownSeconds = ref(0)
 let cooldownUntil = 0
@@ -34,7 +34,7 @@ let disposed = false
 /** 并行重新读取三个页面区域，任一当前区域失败时返回 false，供操作结果提示使用。 */
 async function reloadAll(): Promise<boolean> {
   const results = await Promise.all([loadDashboard(), loadSeries(), loadReadings()])
-  return results.every(Boolean) && !error.value && !seriesError.value && !readingsError.value
+  return results.every(Boolean) && !reading.value && !error.value && !seriesError.value && !readingsError.value
 }
 
 /** 按绝对截止时间更新采集倒计时；后续限流只能延长已有等待。 */
@@ -55,10 +55,10 @@ function startCooldown(seconds: number) {
 
 /** 执行一次手动采集并重读页面；失败时保留已展示的数据，不自动再次采集。 */
 async function refresh() {
-  if (collecting.value || retrying.value || cooldownSeconds.value) return
+  if (busy.value) return
+  if (needsRead.value) return retryRead()
+  if (cooldownSeconds.value) return
   collecting.value = true
-  refreshMessage.value = null
-  refreshFailed.value = false
   startCooldown(30)
   const controller = new AbortController()
   collectRequest = controller
@@ -67,15 +67,14 @@ async function refresh() {
     if (disposed) return
     const complete = await reloadAll()
     if (disposed) return
-    refreshFailed.value = !complete
-    refreshMessage.value = complete ? '采集成功' : '采集成功，但部分数据读取失败'
+    notify(complete ? 'success' : 'warning', complete ? '采集成功' : reading.value ? '采集成功，部分数据仍在读取' : '部分数据读取失败，点击刷新按钮重试读取')
   } catch (cause) {
     if (disposed || controller.signal.aborted) return
     if (cause instanceof ApiError && cause.status === 429) startCooldown(Math.max(30, cause.retryAfterSeconds))
     // 结果未确认不等于采集未执行，提示先读取结果而不是重复写入。
     const uncertain = cause instanceof ApiError && cause.status === 0
-    refreshFailed.value = true
-    refreshMessage.value = uncertain ? '请求结果未确认，已保留上次数据，请先重试读取' : cause instanceof ApiError && cause.status === 429 ? cause.message : '采集失败，已保留上次数据'
+    collectUncertain.value = uncertain
+    notify(uncertain || cause instanceof ApiError && cause.status === 429 ? 'warning' : 'error', uncertain ? '请求结果未确认，点击刷新按钮重新读取' : cause instanceof ApiError && cause.status === 429 ? cause.message : '采集失败，已保留上次数据')
   } finally {
     if (!disposed) collecting.value = false
   }
@@ -87,28 +86,25 @@ async function retryRead() {
   retrying.value = true
   const complete = await reloadAll()
   if (!disposed) {
-    refreshFailed.value = !complete
-    refreshMessage.value = complete
-      ? seriesLoading.value ? '概览与记录已重新读取' : '已重新读取数据'
-      : '部分数据读取失败，请稍后重试'
+    if (complete) collectUncertain.value = false
+    notify(complete ? 'success' : 'warning', complete ? '已重新读取数据' : reading.value ? '部分数据仍在读取，请稍后重试' : '部分数据读取失败，点击刷新按钮重试读取')
     retrying.value = false
   }
 }
 
-const hasReadError = computed(() => !!(error.value || readingsError.value || seriesError.value || refreshFailed.value))
-// 数据新鲜度与本次请求是否成功分开表达，失败读取仍保留旧数据状态。
-const statusTone = computed(() => {
-  if (dashboard.value?.collection.state === 'stale') return 'warning'
-  return dashboard.value?.current ? 'success' : 'neutral'
-})
-const updateLabel = computed(() => {
-  const current = dashboard.value?.current
-  if (!current || !dashboard.value) return loading.value ? '正在加载' : '尚无采集数据'
-  if (dashboard.value.collection.state === 'stale') {
-    return `数据较旧 · ${formatTimestamp(current.collected_at, dashboard.value.timezone)}`
-  }
-  return `${formatTimestamp(current.collected_at, dashboard.value.timezone, false)} 已更新`
-})
+const reading = computed(() => loading.value || seriesLoading.value || readingsLoading.value)
+const busy = computed(() => collecting.value || retrying.value || reading.value)
+const needsRead = computed(() => !!(error.value || readingsError.value || seriesError.value || collectUncertain.value))
+const refreshDisabled = computed(() => busy.value || !needsRead.value && cooldownSeconds.value > 0)
+const refreshLabel = computed(() => retrying.value ? '正在读取…' : collecting.value ? '正在刷新…' : reading.value ? '正在读取…' : needsRead.value ? '重试读取' : '刷新')
+const refreshTooltip = computed(() => !busy.value && !needsRead.value && cooldownSeconds.value ? `${cooldownSeconds.value} 秒后可刷新` : refreshLabel.value)
+
+function notify(type: MessageType, text: string) {
+  feedback?.destroy()
+  feedback = message.create(() => h('span', { role: type === 'success' ? 'status' : 'alert' }, text), {
+    type, duration: type === 'success' ? 3000 : 6000, closable: true, keepAliveOnHover: true,
+  })
+}
 
 // 到期时间由后端决定，页面长开也会过期；更换快照时撤销旧快照的计时器。
 watch(dashboard, current => {
@@ -144,67 +140,48 @@ onMounted(() => { void reloadAll() })
 onUnmounted(() => {
   disposed = true
   collectRequest?.abort()
+  feedback?.destroy()
   window.clearInterval(cooldownTimer)
   window.clearTimeout(staleTimer)
 })
-
-const theme: GlobalThemeOverrides = {
-  common: {
-    primaryColor: '#2F8C59',
-    primaryColorHover: '#267447',
-    primaryColorPressed: '#20623D',
-    primaryColorSuppl: '#2F8C59',
-    bodyColor: '#F7FAF7',
-    cardColor: '#FFFFFF',
-    textColorBase: '#1E3628',
-    textColor1: '#1E3628',
-    textColor2: '#1E3628',
-    textColor3: '#718276',
-    borderColor: '#E1EBE3',
-    borderRadius: '10px',
-    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
-  },
-}
 </script>
 
 <template>
-  <NConfigProvider :theme-overrides="theme">
-    <NGlobalStyle />
-    <div class="page-shell">
-      <header class="brand-header">
-        <Zap :size="28" aria-hidden="true" class="brand-icon" />
-        <span class="brand-name">Watrix</span>
+  <div class="page-shell">
+    <header class="brand-header">
+      <div class="brand-identity">
+        <div class="brand-wordmark">
+          <Zap :size="28" aria-hidden="true" class="brand-icon" />
+          <span class="brand-name">Watrix</span>
+        </div>
         <span v-if="dashboard?.meter_name" class="meter-name">{{ dashboard.meter_name }}</span>
-        <div class="header-actions">
-          <button class="header-icon-button" type="button" aria-label="刷新" :aria-busy="collecting" :disabled="collecting || retrying || cooldownSeconds > 0" :title="collecting ? '正在刷新' : cooldownSeconds ? `${cooldownSeconds} 秒后可再次刷新` : '刷新'" @click="refresh">
-            <RefreshCw :size="20" aria-hidden="true" :class="{ 'refresh-spinning': collecting }" />
-          </button>
-          <button class="header-icon-button" type="button" aria-label="设置" @click="settingsOpen = true"><SettingsIcon :size="20" aria-hidden="true" /></button>
-        </div>
-      </header>
-      <main>
-        <div class="overview-heading">
-          <h1>用电概览</h1>
-          <span class="overview-update empty-state"><span class="status-dot" :class="`dot-${statusTone}`" aria-hidden="true" />{{ updateLabel }}</span>
-        </div>
-        <div v-if="refreshMessage || cooldownSeconds || hasReadError" class="refresh-feedback">
-          <p v-if="refreshMessage" :class="{ 'refresh-error': refreshFailed }" :role="refreshFailed ? 'alert' : 'status'">{{ refreshMessage }}</p>
-          <span v-if="cooldownSeconds" class="cooldown-note">{{ cooldownSeconds }} 秒后可再次刷新</span>
-          <button v-if="hasReadError" type="button" class="read-retry-button" :disabled="retrying || collecting" @click="retryRead">{{ retrying ? '正在重试读取' : '重试读取' }}</button>
-        </div>
+      </div>
+      <div class="header-actions">
+        <NTooltip>
+          <template #trigger>
+            <span class="refresh-trigger">
+              <button class="header-icon-button" type="button" :aria-label="refreshLabel" :aria-busy="busy" :disabled="refreshDisabled" @click="refresh">
+                <RefreshCw :size="20" aria-hidden="true" :class="{ 'refresh-spinning': collecting || retrying }" />
+              </button>
+            </span>
+          </template>
+          {{ refreshTooltip }}
+        </NTooltip>
+        <button class="header-icon-button" type="button" aria-label="设置" @click="settingsOpen = true"><SettingsIcon :size="20" aria-hidden="true" /></button>
+      </div>
+    </header>
+    <main>
+      <div class="dashboard-grid">
+        <BalanceCard :dashboard="dashboard" :loading="loading" :error="error" />
 
-        <div class="dashboard-grid">
-          <BalanceCard :dashboard="dashboard" :loading="loading" :error="error" />
+        <TrendChart v-model:range="range" v-model:metric="metric" :series="series" :loading="seriesLoading" :error="seriesError" />
 
-          <UsageSummaryCard :today="dashboard?.today ?? null" :month="dashboard?.month ?? null" :loading="loading" :error="error" />
+        <UsageSummaryCard :today="dashboard?.today ?? null" :month="dashboard?.month ?? null" :loading="loading" :error="error" />
 
-          <TrendChart v-model:range="range" v-model:metric="metric" :series="series" :loading="seriesLoading" :error="seriesError" />
-
-          <RecentReadings :page="readings" :loading="readingsLoading" :error="readingsError" @open-history="historyOpen = true" />
-        </div>
-      </main>
-    </div>
-    <SettingsModal v-model:show="settingsOpen" :refresh="refresh" :collecting="collecting" :retrying="retrying" :cooldown-seconds="cooldownSeconds" :refresh-message="refreshMessage" :refresh-failed="refreshFailed" @saved="loadDashboard" />
-    <HistoryDrawer v-model:show="historyOpen" />
-  </NConfigProvider>
+        <RecentReadings :page="readings" :loading="readingsLoading" :error="readingsError" @open-history="historyOpen = true" />
+      </div>
+    </main>
+  </div>
+  <SettingsModal v-model:show="settingsOpen" @saved="loadDashboard" />
+  <HistoryDrawer v-model:show="historyOpen" />
 </template>

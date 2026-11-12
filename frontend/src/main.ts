@@ -1,6 +1,27 @@
-import { createApp } from 'vue'
+import { createApp, h } from 'vue'
+import { NConfigProvider, NGlobalStyle, NMessageProvider, type GlobalThemeOverrides } from 'naive-ui'
 import App from './App.vue'
 import './styles/global.css'
 
-// 全局基础样式先加载，再挂载应用及组件内的局部样式。
-createApp(App).mount('#app')
+const theme: GlobalThemeOverrides = {
+  common: {
+    primaryColor: '#2F8C59',
+    primaryColorHover: '#267447',
+    primaryColorPressed: '#20623D',
+    primaryColorSuppl: '#2F8C59',
+    bodyColor: '#F7FAF7',
+    cardColor: '#FFFFFF',
+    textColorBase: '#1E3628',
+    textColor1: '#1E3628',
+    textColor2: '#1E3628',
+    textColor3: '#718276',
+    borderColor: '#E1EBE3',
+    borderRadius: '10px',
+    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+  },
+}
+createApp({
+  render: () => h(NConfigProvider, { themeOverrides: theme }, {
+    default: () => [h(NGlobalStyle), h(NMessageProvider, { placement: 'top', max: 1 }, { default: () => h(App) })],
+  }),
+}).mount('#app')

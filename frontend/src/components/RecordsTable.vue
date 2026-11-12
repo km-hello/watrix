@@ -3,13 +3,11 @@ import { ChevronDown } from '@lucide/vue'
 import { formatNumber, formatTimestamp } from '../format'
 import type { HistoryReading } from '../types/api'
 
-withDefaults(defineProps<{ items: HistoryReading[]; timezone: string; showBalance?: boolean }>(), { showBalance: false })
+defineProps<{ items: HistoryReading[]; timezone: string }>()
 
-/** 将后端采集类型与质量标记转换为展示标签，不重新推算用量或充值金额。 */
+/** 将后端质量标记转换为展示标签，不重新推算用量或充值金额。 */
 function tags(item: HistoryReading): string[] {
   const result: string[] = []
-  if (item.kind === 'manual') result.push('手动')
-  if (item.kind === 'startup') result.push('启动')
   if (item.recharge || item.reason === 'recharge_or_adjustment') result.push('充值')
   if (item.reason === 'gap') result.push('缺失')
   if (item.quality === 'partial') result.push('部分数据')
@@ -36,16 +34,22 @@ function closeDetails(event: KeyboardEvent) {
 <template>
   <table class="records-table records-desktop" aria-label="采集记录">
     <thead>
-      <tr><th scope="col">采集时间</th><th scope="col">剩余电量</th><th v-if="showBalance" scope="col">余额</th><th scope="col">区间估算用电</th></tr>
+      <tr><th scope="col">采集时间</th><th scope="col">剩余电量</th><th scope="col">余额</th><th scope="col">区间估算用电</th></tr>
     </thead>
     <tbody>
       <tr v-for="item in items" :key="item.id">
         <td><time :datetime="item.collected_at">{{ formatTimestamp(item.collected_at, timezone) }}</time></td>
         <td>{{ formatNumber(item.remaining_kwh) }} kWh</td>
-        <td v-if="showBalance">¥ {{ formatNumber(item.remaining_yuan) }}</td>
+        <td>¥ {{ formatNumber(item.remaining_yuan) }}</td>
         <td>
-          {{ interval(item) }}
-          <div v-if="tags(item).length" class="record-tags"><span v-for="tag in tags(item)" :key="tag" class="record-tag">{{ tag }}</span></div>
+          <span class="record-usage">
+            <span>{{ interval(item) }}</span>
+            <span v-if="item.kind !== 'scheduled' || tags(item).length" class="record-tags">
+              <span v-if="item.kind === 'manual'" class="record-tag">手动</span>
+              <span v-else-if="item.kind === 'startup'" class="record-tag">启动</span>
+              <span v-for="tag in tags(item)" :key="tag" class="record-tag">{{ tag }}</span>
+            </span>
+          </span>
         </td>
       </tr>
     </tbody>
@@ -62,10 +66,17 @@ function closeDetails(event: KeyboardEvent) {
             <span class="sr-only">，查看记录详情</span>
           </summary>
           <div class="record-detail-body">
-            <div v-if="tags(item).length" class="record-tags"><span v-for="tag in tags(item)" :key="tag" class="record-tag">{{ tag }}</span></div>
             <dl>
               <div><dt>余额</dt><dd>¥ {{ formatNumber(item.remaining_yuan) }}</dd></div>
-              <div><dt>区间估算用电</dt><dd>{{ interval(item) }}</dd></div>
+              <div>
+                <dt>区间估算用电</dt>
+                <dd>
+                  <span class="record-usage">
+                    <span>{{ interval(item) }}</span>
+                    <span v-if="tags(item).length" class="record-tags"><span v-for="tag in tags(item)" :key="tag" class="record-tag">{{ tag }}</span></span>
+                  </span>
+                </dd>
+              </div>
               <div><dt>采集类型</dt><dd>{{ item.kind === 'manual' ? '手动' : item.kind === 'startup' ? '启动' : '定时' }}</dd></div>
             </dl>
             <p v-if="item.reason === 'not_scheduled'" class="record-note">非定时采集不计入区间估算。</p>

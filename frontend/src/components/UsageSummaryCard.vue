@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { NPopover, NSkeleton } from 'naive-ui'
+import { Info } from '@lucide/vue'
 import { formatNumber } from '../format'
 import type { UsageSummary } from '../types/api'
 
@@ -12,7 +13,7 @@ const props = defineProps<{
 }>()
 const periods = computed(() => [
   { label: '今日估算用电', summary: props.today },
-  { label: '本月估算', summary: props.month },
+  { label: '本月估算用电', summary: props.month },
 ])
 const openPeriod = ref<string | null>(null)
 
@@ -31,12 +32,13 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
-/** 解释后端返回的有效区间和覆盖率，明确缺失及充值变化不参与估算。 */
+/** 按后端覆盖率展示有效和缺失区间。 */
 function coverageDetail(summary: UsageSummary | null): string {
-  if (!summary) return props.error ? '统计数据暂不可用，请稍后重试。' : '尚无可用的估算数据。'
-  const coverage = new Intl.NumberFormat('zh-CN', { style: 'percent', maximumFractionDigits: 1 }).format(summary.coverage)
-  return `有效区间 ${summary.valid_intervals} / ${summary.expected_intervals}，覆盖率 ${coverage}。缺失或充值变化区间不计入估算。`
+  if (!summary) return '暂无统计数据'
+  const percent = new Intl.NumberFormat('zh-CN', { style: 'percent', maximumFractionDigits: 1 })
+  return `有效区间：${summary.valid_intervals} / ${summary.expected_intervals}（${percent.format(summary.coverage)}）\n缺失区间：${summary.expected_intervals - summary.valid_intervals} / ${summary.expected_intervals}（${percent.format(summary.expected_intervals ? 1 - summary.coverage : 0)}）`
 }
+
 </script>
 
 <template>
@@ -45,14 +47,14 @@ function coverageDetail(summary: UsageSummary | null): string {
       <div v-for="period in periods" :key="period.label">
         <dt>{{ period.label }}</dt>
         <dd>
-          <NSkeleton v-if="loading && !period.summary" width="100px" height="28px" :sharp="false" aria-hidden="true" />
+          <NSkeleton v-if="loading && !period.summary" width="100px" height="34px" :sharp="false" aria-hidden="true" />
           <template v-else>
             <strong class="summary-number">{{ period.summary?.estimated_kwh != null ? formatNumber(period.summary.estimated_kwh) : '—' }}</strong>
             <span>kWh</span>
-            <NPopover v-if="period.summary?.estimated_kwh == null || period.summary.quality !== 'complete'" trigger="click" placement="bottom" :width="240" :show="openPeriod === period.label" @update:show="updatePopover(period.label, $event)">
+            <NPopover v-if="!(error && !period.summary) && (period.summary?.estimated_kwh == null || period.summary.quality !== 'complete')" trigger="click" placement="bottom" :width="240" :show="openPeriod === period.label" @update:show="updatePopover(period.label, $event)">
               <template #trigger>
                 <button type="button" class="quality-badge" :aria-expanded="openPeriod === period.label" :aria-label="`${period.label}：${period.summary?.estimated_kwh != null ? '部分数据' : '缺失数据'}，查看说明`">
-                  {{ period.summary?.estimated_kwh != null ? '部分数据' : '缺失数据' }}
+                  <Info :size="15" aria-hidden="true" /><span class="quality-label">{{ period.summary?.estimated_kwh != null ? '部分数据' : '缺失数据' }}</span>
                 </button>
               </template>
               <p class="summary-detail">{{ coverageDetail(period.summary) }}</p>
@@ -61,7 +63,7 @@ function coverageDetail(summary: UsageSummary | null): string {
         </dd>
       </div>
     </dl>
-    <p v-if="error && (today || month)" class="summary-request-error" role="alert">{{ error }}，已保留上次估算</p>
+    <p v-if="error" class="summary-request-error" role="alert">{{ error }}<template v-if="today || month">，已保留上次估算</template></p>
     <span v-if="loading && !today && !month" class="sr-only" role="status">正在加载估算用电</span>
   </section>
 </template>
