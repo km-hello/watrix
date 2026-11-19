@@ -161,12 +161,13 @@ func rollingPoints(readings []database.Reading, intervals []stats.Interval, rise
 
 // dailyPoints 按本地自然日生成每日最后定时余量或估算用量汇总。
 func dailyPoints(readings []database.Reading, intervals []stats.Interval, rises map[string]bool, civilStart time.Time, days int, now time.Time, location *time.Location, metric string) ([]seriesPoint, error) {
-	// 每日余量只取最后一条定时读数，避免手动刷新改变日趋势口径。
+	// 每日余量取截至当日 24:00 的最后定时读数，按计划边界归属以免午夜采集延迟跨日。
 	lastScheduled := make(map[string]database.Reading)
 	for _, reading := range readings {
 		at := time.UnixMilli(reading.CollectedAtMS)
-		if reading.Kind == "scheduled" && !at.After(now) {
-			lastScheduled[at.In(location).Format("2006-01-02")] = reading
+		if reading.Kind == "scheduled" && reading.HourBucketMS != nil && !at.After(now) {
+			day := time.UnixMilli(*reading.HourBucketMS).Add(-time.Nanosecond)
+			lastScheduled[day.In(location).Format("2006-01-02")] = reading
 		}
 	}
 	points := make([]seriesPoint, 0, days)
@@ -181,7 +182,7 @@ func dailyPoints(readings []database.Reading, intervals []stats.Interval, rises 
 		point := seriesPoint{Timestamp: start.UTC(), Quality: "missing", Reason: "gap", Recharge: rises[key]}
 		if metric == "remaining" {
 			if reading, exists := lastScheduled[key]; exists {
-				point.Timestamp, point.Value, point.Quality, point.Reason, point.Kind = time.UnixMilli(reading.CollectedAtMS).UTC(), kwhValue(reading.RemainingKWhX10000), "complete", "", "scheduled"
+				point.Value, point.Quality, point.Reason, point.Kind = kwhValue(reading.RemainingKWhX10000), "complete", "", "scheduled"
 				if point.Recharge {
 					point.Reason = "recharge_or_adjustment"
 				}
@@ -200,8 +201,12 @@ func dailyPoints(readings []database.Reading, intervals []stats.Interval, rises 
 				// 用量不完整时保留充值原因；覆盖率仍描述该日整体的数据完整度。
 				for _, interval := range intervals {
 					at := time.UnixMilli(interval.EndedAtMS)
-					if !at.Before(start) && at.Before(end) && !at.After(now) && interval.Reason == "recharge_or_adjustment" {
-						point.Reason = "recharge_or_adjustment"
+					if interval.EndBucketMS == nil {
+						continue
+					}
+					boundary := time.UnixMilli(*interval.EndBucketMS)
+					if boundary.After(start) && !boundary.After(end) && !at.After(now) && interval.Reason == "recharge_or_adjustment" {
+						point.Reason, point.Recharge = "recharge_or_adjustment", true
 						break
 					}
 				}

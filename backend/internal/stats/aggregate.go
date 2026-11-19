@@ -79,9 +79,9 @@ func DueSlots(start, end, now time.Time, location *time.Location) ([]time.Time, 
 	return slots, nil
 }
 
-// Aggregate 按区间结束时刻汇总有效小时用量，并计算截至 now 的完整度。
+// Aggregate 按计划结束边界 (start, end] 汇总小时用量，午夜结束的区间计入前一日。
 func Aggregate(intervals []Interval, start, end, now time.Time, location *time.Location) (Summary, error) {
-	slots, err := DueSlots(start, end, now, location)
+	slots, err := DueSlots(start.Add(time.Nanosecond), end.Add(time.Nanosecond), now, location)
 	if err != nil {
 		return Summary{}, err
 	}
@@ -100,7 +100,7 @@ func Aggregate(intervals []Interval, start, end, now time.Time, location *time.L
 	var total int64
 	for _, interval := range intervals {
 		ended := time.UnixMilli(interval.EndedAtMS)
-		if ended.Before(start) || !ended.Before(end) || ended.After(now) || interval.EndBucketMS == nil {
+		if ended.After(now) || interval.EndBucketMS == nil {
 			continue
 		}
 		bucket := *interval.EndBucketMS

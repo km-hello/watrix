@@ -103,7 +103,12 @@ func ObservedRises(readings []database.Reading, previous *database.Reading, star
 			continue
 		}
 		if previous != nil && reading.RemainingKWhX10000 > previous.RemainingKWhX10000 {
-			rises[reading.ID], daily[at.In(location).Format("2006-01-02")] = true, true
+			day := at
+			// 定时读数的日标记与用量、日末余量一致，午夜边界归前一日。
+			if reading.Kind == "scheduled" && reading.HourBucketMS != nil {
+				day = time.UnixMilli(*reading.HourBucketMS).Add(-time.Nanosecond)
+			}
+			rises[reading.ID], daily[day.In(location).Format("2006-01-02")] = true, true
 		}
 		previous = reading
 	}

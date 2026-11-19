@@ -7,13 +7,13 @@ export function formatNumber(value: number, maximumFractionDigits = 2): string {
   }).format(value)
 }
 
-/** 按服务端业务时区显示时间；无效时间或时区返回占位符，date 控制是否显示日期。 */
-export function formatTimestamp(value: string, timezone: string, date = true): string {
+/** 按服务端业务时区显示日期时间；日统计可省略时分，无效输入返回占位符。 */
+export function formatTimestamp(value: string, timezone: string, showTime = true): string {
   try {
     return new Intl.DateTimeFormat('zh-CN', {
       timeZone: timezone,
-      ...(date ? { year: 'numeric', month: '2-digit', day: '2-digit' } as const : {}),
-      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      ...(showTime ? { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' } as const : {}),
     }).format(new Date(value))
   } catch {
     return '—'

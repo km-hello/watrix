@@ -54,7 +54,7 @@ watch([range, metric, () => props.series], () => { qualityOpen.value = false })
 
 /** 按业务时区描述数据点及质量，null 保留为缺失，覆盖率沿用后端计算结果。 */
 function pointTooltip(point: SeriesPoint, timezone: string): string {
-  const lines = [formatTimestamp(point.timestamp, timezone), `${point.value === null ? '—' : formatNumber(point.value)} kWh`]
+  const lines = [formatTimestamp(point.timestamp, timezone, range.value === '24h'), `${point.value === null ? '—' : formatNumber(point.value)} kWh`]
   if (point.value === null) lines.push('缺失数据')
   else if (point.quality === 'partial') lines.push('部分数据')
   if (point.reason === 'recharge_or_adjustment' || point.recharge) lines.push('充值变化或余额调整')
