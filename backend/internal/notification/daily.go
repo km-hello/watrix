@@ -3,6 +3,7 @@ package notification
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -43,7 +44,7 @@ func (s *Service) daily(ctx context.Context, now time.Time, settings database.Se
 // kwhText 将万分之一度的定点整数格式化为四位小数，避免浮点舍入。
 func kwhText(value int64) string { return fmt.Sprintf("%d.%04d", value/10000, value%10000) }
 
-// dailyMessage 组合当前余额、今日估算用量及数据质量提示。
+// dailyMessage 组合当前余额、昨日及今日估算用量及数据质量提示。
 func (s *Service) dailyMessage(ctx context.Context, now time.Time) (string, error) {
 	current, err := database.LatestReading(ctx, s.db)
 	if err != nil {
@@ -53,12 +54,23 @@ func (s *Service) dailyMessage(ctx context.Context, now time.Time) (string, erro
 	if err != nil {
 		return "", ErrStorage
 	}
-	start, end := stats.DayBounds(now, s.location)
-	readings, err := database.ReadingsForStats(ctx, s.db, start.UnixMilli(), now.UnixMilli())
+	start, _ := stats.DayBounds(now, s.location)
+	yesterday, _ := stats.DayBounds(now.In(s.location).AddDate(0, 0, -1), s.location)
+	readings, err := database.ReadingsForStats(ctx, s.db, yesterday.UnixMilli(), now.UnixMilli())
 	if err != nil {
 		return "", ErrStorage
 	}
-	summary, err := stats.Aggregate(stats.Hourly(readings), start, end, now, s.location)
+	// 两个时段的费用均按最新采集电价估算，不代表历史实际扣费。
+	var unitPrice *int64
+	if current != nil {
+		unitPrice = &current.UnitPriceX10000
+	}
+	intervals := stats.Hourly(readings)
+	yesterdayUsage, err := s.periodUsage(intervals, yesterday, start, now, unitPrice)
+	if err != nil {
+		return "", err
+	}
+	todayUsage, err := s.periodUsage(intervals, start, now, now, unitPrice)
 	if err != nil {
 		return "", ErrStatistics
 	}
@@ -77,16 +89,39 @@ func (s *Service) dailyMessage(ctx context.Context, now time.Time) (string, erro
 	if attempt != nil && !attempt.Success {
 		warnings = append(warnings, "最近采集失败")
 	}
-	usage := "—（缺失数据）"
-	if summary.EstimatedKWhX10000 != nil {
-		usage = kwhText(*summary.EstimatedKWhX10000) + " kWh"
-		if summary.Quality == "partial" {
-			usage += "（部分数据）"
-		}
-	}
-	text := fmt.Sprintf("Watrix · 用电日报 · %s\n剩余：%s\n今日估算：%s\n数据截至：%s", now.In(s.location).Format("2006-01-02"), remaining, usage, asOf)
+	text := fmt.Sprintf("Watrix · 用电日报\n%s\n\n昨日估算：%s\n%s 00:00–24:00\n\n今日估算：%s\n%s 00:00–%s\n\n剩余：%s\n数据截至：%s",
+		now.In(s.location).Format("2006-01-02"),
+		yesterdayUsage, yesterday.Format("2006-01-02"),
+		todayUsage, start.Format("2006-01-02"), now.In(s.location).Format("15:04"),
+		remaining, asOf)
 	if len(warnings) > 0 {
-		text += "\n" + strings.Join(warnings, " · ")
+		text += "\n\n提示：" + strings.Join(warnings, " · ")
 	}
 	return text, nil
+}
+
+// periodUsage 以 (start, end] 的小时结束边界统计，午夜结束的区间属于前一日。
+func (s *Service) periodUsage(intervals []stats.Interval, start, end, now time.Time, unitPrice *int64) (string, error) {
+	summary, err := stats.Aggregate(intervals, start, end, now, s.location)
+	if err != nil {
+		return "", ErrStatistics
+	}
+	if summary.EstimatedKWhX10000 == nil {
+		return "— kWh · ¥—（缺失数据）", nil
+	}
+	cost := "—"
+	if unitPrice != nil {
+		cost = usageCostText(*summary.EstimatedKWhX10000, *unitPrice)
+	}
+	usage := kwhText(*summary.EstimatedKWhX10000) + " kWh · ¥" + cost
+	if summary.Quality == "partial" {
+		usage += "（部分数据）"
+	}
+	return usage, nil
+}
+
+// usageCostText 用定点乘积计算元并四舍五入到分，避免整数溢出和浮点误差。
+func usageCostText(usage, unitPrice int64) string {
+	product := new(big.Int).Mul(big.NewInt(usage), big.NewInt(unitPrice))
+	return new(big.Rat).SetFrac(product, big.NewInt(100000000)).FloatString(2)
 }
