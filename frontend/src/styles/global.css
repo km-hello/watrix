@@ -94,8 +94,10 @@ dd { margin: 0; font-size: 18px; font-weight: 600; }
 .trend-quality-detail p { margin: 0; }
 .trend-quality-detail p + p { margin-top: 8px; }
 .trend-range { flex-shrink: 0; }
-.trend-metric-select { width: 100px; height: 32px; padding: 4px 8px; border: 1px solid var(--ui-border); border-radius: 8px; color: var(--ui-text); background: var(--ui-surface); font-size: 13px; cursor: pointer; }
-.trend-unit { position: absolute; top: 2px; left: 0; color: var(--ui-muted); font-size: 12px; }
+.trend-metric-select { display: inline-flex; align-items: center; justify-content: space-between; gap: 6px; width: 100px; height: 32px; padding: 4px 8px; border: 1px solid var(--ui-border); border-radius: 8px; color: var(--ui-text); background: var(--ui-surface); font-size: 13px; cursor: pointer; }
+.trend-metric-options { display: flex; flex-direction: column; gap: 12px; padding: 4px; }
+.trend-metric-option { display: inline-flex; align-items: center; gap: 8px; }
+.trend-quality-metric + .trend-quality-metric { margin-top: 12px; }
 .trend-plot { position: relative; flex: 1; min-height: 210px; }
 .trend-canvas { position: absolute; inset: 0; touch-action: pan-y; }
 .trend-overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center; pointer-events: none; }

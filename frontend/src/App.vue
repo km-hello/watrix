@@ -9,16 +9,18 @@ import RecentReadings from './components/RecentReadings.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import HistoryDrawer from './components/HistoryDrawer.vue'
 import { ApiError, collect, getDashboard, getReadings, getSeries } from './api'
-import type { SeriesMetric, SeriesRange } from './types/api'
+import type { SeriesRange } from './types/api'
 import { useReadRequest } from './useReadRequest'
 
 const settingsOpen = ref(false)
 const historyOpen = ref(false)
 const range = ref<SeriesRange>('24h')
-const metric = ref<SeriesMetric>('remaining')
 const { data: dashboard, loading, error, load: loadDashboard } = useReadRequest(getDashboard)
 const { data: readings, loading: readingsLoading, error: readingsError, load: loadReadings } = useReadRequest(signal => getReadings({ limit: 6 }, signal))
-const { data: series, loading: seriesLoading, error: seriesError, load: loadSeries } = useReadRequest(signal => getSeries(range.value, metric.value, signal))
+const { data: series, loading: seriesLoading, error: seriesError, load: loadSeries } = useReadRequest(async signal => {
+  const [remaining, consumption] = await Promise.all([getSeries(range.value, 'remaining', signal), getSeries(range.value, 'consumption', signal)])
+  return { remaining, consumption }
+})
 const collecting = ref(false)
 const collectUncertain = ref(false)
 const message = useMessage()
@@ -134,7 +136,7 @@ watch(dashboard, current => {
 })
 
 // 切换查询时清空旧趋势，避免用新标签展示上一次范围的数据。
-watch([range, metric], () => { void loadSeries(true) })
+watch(range, () => { void loadSeries(true) })
 onMounted(() => { void reloadAll() })
 // 读取请求由各自组合函数释放，这里清理页面持有的写请求和计时器。
 onUnmounted(() => {
@@ -174,7 +176,7 @@ onUnmounted(() => {
       <div class="dashboard-grid">
         <BalanceCard :dashboard="dashboard" :loading="loading" :error="error" />
 
-        <TrendChart v-model:range="range" v-model:metric="metric" :series="series" :loading="seriesLoading" :error="seriesError" />
+        <TrendChart v-model:range="range" :series="series" :loading="seriesLoading" :error="seriesError" />
 
         <UsageSummaryCard :today="dashboard?.today ?? null" :month="dashboard?.month ?? null" :loading="loading" :error="error" />
 
