@@ -2,15 +2,18 @@
 
 /* 全局色彩与字体基础，组件样式通过变量保持一致。 */
 :root {
-  --ui-bg: #F7FAF7;
+  --ui-bg: #F6F9F7;
   --ui-surface: #FFFFFF;
-  --ui-primary: #2F8C59;
-  --ui-chart: #40A970;
-  --ui-soft-green: #E9F6ED;
-  --ui-text: #1E3628;
-  --ui-muted: #718276;
-  --ui-border: #E1EBE3;
-  --ui-warning: #B7791F;
+  --ui-primary: #278263;
+  --ui-soft-green: #EAF4EE;
+  --ui-text: #3E5147;
+  --ui-heading: #263D32;
+  --ui-selected-text: #226E54;
+  --ui-table-header: #EEF5F0;
+  --ui-divider: #E7EDE9;
+  --ui-muted: #617167;
+  --ui-border: #E0E8E2;
+  --ui-warning: #89672D;
   --ui-error: #C94A50;
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   font-size: 14px;
@@ -30,7 +33,7 @@ button, input, select, textarea { font: inherit; }
 .brand-icon { color: var(--ui-primary); }
 .brand-identity { flex: 1; min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .brand-wordmark { display: flex; align-items: center; flex-shrink: 0; gap: 12px; }
-.brand-name { font-size: 26px; font-weight: 700; line-height: 1; }
+.brand-name { color: var(--ui-heading); font-size: 26px; font-weight: 700; line-height: 1; }
 .brand-icon, .brand-name { flex-shrink: 0; }
 .meter-name { min-width: 0; max-width: 100%; margin-left: 8px; padding-left: 20px; border-left: 1px solid var(--ui-border); color: var(--ui-muted); overflow-wrap: anywhere; }
 .header-actions { display: flex; flex-shrink: 0; gap: 8px; margin-left: auto; }
@@ -44,21 +47,21 @@ button, input, select, textarea { font: inherit; }
 .refresh-error { color: var(--ui-error); }
 .read-retry-button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--ui-border); border-radius: 10px; background: var(--ui-surface); color: var(--ui-primary); cursor: pointer; }
 .read-retry-button:disabled { opacity: 0.5; cursor: default; }
-h2 { margin: 0; font-size: 20px; font-weight: 650; line-height: 1.4; }
+h2 { color: var(--ui-heading); margin: 0; font-size: 20px; font-weight: 650; line-height: 1.4; }
 /* 桌面卡片网格；各卡片的 grid 位置在移动端统一复位。 */
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; }
 .dashboard-card { min-width: 0; padding: 24px; border: 1px solid var(--ui-border); border-radius: 16px; background: var(--ui-surface); box-shadow: 0 2px 8px rgb(30 54 40 / 2%); }
 /* 余额卡与统计摘要。 */
 .balance-card { grid-column: 2; grid-row: 1; min-height: 310px; display: flex; flex-direction: column; }
 .balance { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 12px 0 16px; font-size: 54px; font-weight: 700; line-height: 1.2; }
-.balance-value { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
-.balance-unit { font-size: 24px; font-weight: 500; }
+.balance-value { color: var(--ui-heading); min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.balance-unit { color: var(--ui-muted); font-size: 24px; font-weight: 500; }
 .balance-details { margin: 0; }
-.balance-details > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--ui-border); }
+.balance-details > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--ui-divider); }
 .balance-details dd { min-width: 0; overflow-wrap: anywhere; text-align: right; }
 dt { color: var(--ui-muted); }
 dd { margin: 0; font-size: 18px; font-weight: 600; }
-.detail-unit { font-size: 13px; font-weight: 500; }
+.detail-unit { color: var(--ui-muted); font-size: 13px; font-weight: 500; }
 .balance-status { margin: auto 0 0; padding: 10px 12px; border-radius: 10px; background: var(--ui-soft-green); color: var(--ui-muted); text-align: center; }
 .balance-heading { display: flex; align-items: center; }
 .balance-time-trigger { display: inline-flex; align-items: center; justify-content: flex-start; flex-shrink: 0; width: 44px; height: 44px; margin: -8px 0; padding: 0 0 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--ui-muted); cursor: pointer; }
@@ -66,15 +69,15 @@ dd { margin: 0; font-size: 18px; font-weight: 600; }
 .balance-request-error { margin: 0 0 12px; color: var(--ui-error); font-size: 13px; }
 .balance-skeleton { display: grid; gap: 12px; margin: 12px 0 20px; }
 .status-success { color: var(--ui-primary); }
-.status-warning { color: var(--ui-warning); background: #FFF6E5; }
+.status-warning { color: var(--ui-warning); background: #F8F3E8; }
 .summary-card { grid-column: 1 / -1; grid-row: 2; min-height: 86px; display: flex; flex-direction: column; justify-content: center; }
 .summary-values { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin: 0; }
 .summary-values > div { min-width: 0; display: flex; align-items: center; gap: 20px; padding: 0 24px; }
-.summary-values > div:first-child { padding-left: 0; border-right: 1px solid var(--ui-border); }
+.summary-values > div:first-child { padding-left: 0; border-right: 1px solid var(--ui-divider); }
 .summary-values > div:last-child { padding-right: 0; }
 .summary-values dt { flex-shrink: 0; font-size: 14px; }
 .summary-values dd { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; font-size: 28px; line-height: 1.2; }
-.summary-number { min-width: 0; max-width: 100%; font: inherit; font-weight: 700; overflow-wrap: anywhere; }
+.summary-number { color: var(--ui-heading); min-width: 0; max-width: 100%; font: inherit; font-weight: 700; overflow-wrap: anywhere; }
 .summary-values dd span { color: var(--ui-muted); font-size: 14px; font-weight: 500; }
 .quality-badge { margin-left: auto; align-self: center; display: inline-flex; align-items: center; gap: 5px; min-height: 24px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ui-muted); font-size: 13px; cursor: pointer; }
 .quality-badge svg { flex-shrink: 0; }
@@ -94,8 +97,10 @@ dd { margin: 0; font-size: 18px; font-weight: 600; }
 .trend-quality-detail p { margin: 0; }
 .trend-quality-detail p + p { margin-top: 8px; }
 .trend-range { flex-shrink: 0; }
-.trend-metric-select { width: 100px; height: 32px; padding: 4px 8px; border: 1px solid var(--ui-border); border-radius: 8px; color: var(--ui-text); background: var(--ui-surface); font-size: 13px; cursor: pointer; }
-.trend-unit { position: absolute; top: 2px; left: 0; color: var(--ui-muted); font-size: 12px; }
+.trend-metric-select { display: inline-flex; align-items: center; justify-content: space-between; gap: 6px; width: 100px; height: 32px; padding: 4px 8px; border: 1px solid var(--ui-border); border-radius: 8px; color: var(--ui-text); background: var(--ui-surface); font-size: 13px; cursor: pointer; }
+.trend-metric-options { display: flex; flex-direction: column; gap: 12px; padding: 4px; }
+.trend-metric-option { display: inline-flex; align-items: center; gap: 8px; }
+.trend-quality-metric + .trend-quality-metric { margin-top: 12px; }
 .trend-plot { position: relative; flex: 1; min-height: 210px; }
 .trend-canvas { position: absolute; inset: 0; touch-action: pan-y; }
 .trend-overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center; pointer-events: none; }
@@ -106,10 +111,10 @@ dd { margin: 0; font-size: 18px; font-weight: 600; }
 .records-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .all-records-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; padding: 8px 0 8px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--ui-primary); cursor: pointer; }
 .records-table { width: 100%; margin-top: 20px; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
-.records-table th { padding: 12px 16px; background: var(--ui-soft-green); color: var(--ui-muted); text-align: left; font-weight: 500; }
+.records-table th { padding: 12px 16px; background: var(--ui-table-header); color: var(--ui-muted); text-align: left; font-weight: 500; }
 .records-table th:first-child { border-radius: 10px 0 0 10px; }
 .records-table th:last-child { border-radius: 0 10px 10px 0; }
-.records-table td { padding: 14px 16px; border-bottom: 1px solid var(--ui-border); vertical-align: top; overflow-wrap: anywhere; }
+.records-table td { padding: 14px 16px; border-bottom: 1px solid var(--ui-divider); vertical-align: top; overflow-wrap: anywhere; }
 .records-table tbody tr:last-child td { border-bottom: 0; }
 .record-usage { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .record-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
@@ -130,7 +135,7 @@ dd { margin: 0; font-size: 18px; font-weight: 600; }
 .history-ranges { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); flex-shrink: 0; gap: 4px; margin: 0 24px 16px; padding: 3px; border: 1px solid var(--ui-border); border-radius: 12px; }
 .history-ranges label { min-width: 0; cursor: pointer; }
 .history-ranges span { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 12px; border-radius: 8px; color: var(--ui-muted); }
-.history-ranges input:checked + span { color: var(--ui-text); background: var(--ui-soft-green); }
+.history-ranges input:checked + span { color: var(--ui-selected-text); background: var(--ui-soft-green); }
 .history-ranges input:focus-visible + span { outline: 2px solid var(--ui-primary); outline-offset: 1px; }
 .history-body { flex: 1; min-height: 0; overflow: auto; padding: 0 24px 24px; }
 /* 抽屉复用记录表格时压缩间距，不改变首页记录布局。 */
@@ -176,9 +181,9 @@ dd { margin: 0; font-size: 18px; font-weight: 600; }
   .records-desktop { display: none; }
   .records-mobile { display: block; margin-top: 18px; }
   .records-mobile-heading, .record-details summary { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: baseline; gap: 12px; padding: 12px; }
-  .records-mobile-heading { border-radius: 10px; background: var(--ui-soft-green); color: var(--ui-muted); }
+  .records-mobile-heading { border-radius: 10px; background: var(--ui-table-header); color: var(--ui-muted); }
   .records-list { margin: 0; padding: 0; list-style: none; }
-  .record-details { border-bottom: 1px solid var(--ui-border); }
+  .record-details { border-bottom: 1px solid var(--ui-divider); }
   .records-list li:last-child .record-details { border-bottom: 0; }
   .record-details summary { min-height: 44px; cursor: pointer; list-style: none; }
   .record-details summary::-webkit-details-marker { display: none; }

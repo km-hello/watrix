@@ -40,6 +40,8 @@ export type SeriesMetric = 'remaining' | 'consumption'
 export interface SeriesPoint {
   timestamp: string
   value: number | null
+  /** 对应读数余额或按最新电价估算的用电金额；元，保留两位小数。 */
+  amount_yuan: string | null
   quality: 'complete' | 'partial' | 'missing'
   reason: '' | 'gap' | 'recharge_or_adjustment'
   kind?: Reading['kind']

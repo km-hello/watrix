@@ -3,7 +3,6 @@ package notification
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"strings"
 	"time"
 
@@ -111,17 +110,11 @@ func (s *Service) periodUsage(intervals []stats.Interval, start, end, now time.T
 	}
 	cost := "—"
 	if unitPrice != nil {
-		cost = usageCostText(*summary.EstimatedKWhX10000, *unitPrice)
+		cost = stats.UsageCostText(*summary.EstimatedKWhX10000, *unitPrice)
 	}
 	usage := kwhText(*summary.EstimatedKWhX10000) + " kWh · ¥" + cost
 	if summary.Quality == "partial" {
 		usage += "（部分数据）"
 	}
 	return usage, nil
-}
-
-// usageCostText 用定点乘积计算元并四舍五入到分，避免整数溢出和浮点误差。
-func usageCostText(usage, unitPrice int64) string {
-	product := new(big.Int).Mul(big.NewInt(usage), big.NewInt(unitPrice))
-	return new(big.Rat).SetFrac(product, big.NewInt(100000000)).FloatString(2)
 }

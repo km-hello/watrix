@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -13,7 +14,8 @@ import (
 
 type seriesPoint struct {
 	Timestamp         time.Time `json:"timestamp"`
-	Value             *float64  `json:"value"` // 千瓦时；null 表示缺失或无法可靠估算，不能当作零。
+	Value             *float64  `json:"value"`       // 千瓦时；null 表示缺失或无法可靠估算，不能当作零。
+	AmountYuan        *string   `json:"amount_yuan"` // 元，固定两位小数；缺失金额为 null。
 	Quality           string    `json:"quality"`
 	Reason            string    `json:"reason"`
 	Kind              string    `json:"kind,omitempty"`
@@ -92,12 +94,24 @@ func seriesHandler(db *sql.DB, location *time.Location, now func() time.Time) ht
 			Error(w, 500, "database_error", "读取用电数据失败")
 			return
 		}
+		var unitPrice *int64
+		if metric == "consumption" {
+			latest, err := database.LatestReading(r.Context(), db)
+			if err != nil {
+				Error(w, 500, "database_error", "读取用电数据失败")
+				return
+			}
+			// 与每日通知一致，历史用量金额按最新采集电价估算。
+			if latest != nil {
+				unitPrice = &latest.UnitPriceX10000
+			}
+		}
 		rises, dailyRises := stats.ObservedRises(readings, previous, start, at, location)
 		var points []seriesPoint
 		if days == 0 {
-			points, err = rollingPoints(readings, stats.Hourly(readings), rises, start, at, location, metric)
+			points, err = rollingPoints(readings, stats.Hourly(readings), rises, start, at, location, metric, unitPrice)
 		} else {
-			points, err = dailyPoints(readings, stats.Hourly(readings), dailyRises, civilStart, days, at, location, metric)
+			points, err = dailyPoints(readings, stats.Hourly(readings), dailyRises, civilStart, days, at, location, metric, unitPrice)
 		}
 		if err != nil {
 			Error(w, 500, "statistics_error", "用电趋势暂不可用")
@@ -108,7 +122,7 @@ func seriesHandler(db *sql.DB, location *time.Location, now func() time.Time) ht
 }
 
 // rollingPoints 生成最近 24 小时的观测点或用量区间，并补齐应采未采的空点。
-func rollingPoints(readings []database.Reading, intervals []stats.Interval, rises map[int64]bool, start, now time.Time, location *time.Location, metric string) ([]seriesPoint, error) {
+func rollingPoints(readings []database.Reading, intervals []stats.Interval, rises map[int64]bool, start, now time.Time, location *time.Location, metric string, unitPrice *int64) ([]seriesPoint, error) {
 	points := make([]seriesPoint, 0)
 	scheduled := make(map[int64]bool)
 	for _, reading := range readings {
@@ -121,6 +135,7 @@ func rollingPoints(readings []database.Reading, intervals []stats.Interval, rise
 		}
 		if metric == "remaining" {
 			point := seriesPoint{Timestamp: at, Value: kwhValue(reading.RemainingKWhX10000), Quality: "complete", Kind: reading.Kind, Recharge: rises[reading.ID]}
+			point.AmountYuan = seriesBalanceAmount(reading.RemainingCents)
 			if point.Recharge {
 				point.Reason = "recharge_or_adjustment"
 			}
@@ -137,6 +152,7 @@ func rollingPoints(readings []database.Reading, intervals []stats.Interval, rise
 			if interval.EstimatedKWhX10000 != nil {
 				point.Value = kwhValue(*interval.EstimatedKWhX10000)
 			}
+			point.AmountYuan = seriesUsageAmount(interval.EstimatedKWhX10000, unitPrice)
 			points = append(points, point)
 		}
 	}
@@ -160,7 +176,7 @@ func rollingPoints(readings []database.Reading, intervals []stats.Interval, rise
 }
 
 // dailyPoints 按本地自然日生成每日最后定时余量或估算用量汇总。
-func dailyPoints(readings []database.Reading, intervals []stats.Interval, rises map[string]bool, civilStart time.Time, days int, now time.Time, location *time.Location, metric string) ([]seriesPoint, error) {
+func dailyPoints(readings []database.Reading, intervals []stats.Interval, rises map[string]bool, civilStart time.Time, days int, now time.Time, location *time.Location, metric string, unitPrice *int64) ([]seriesPoint, error) {
 	// 每日余量取截至当日 24:00 的最后定时读数，按计划边界归属以免午夜采集延迟跨日。
 	lastScheduled := make(map[string]database.Reading)
 	for _, reading := range readings {
@@ -183,6 +199,7 @@ func dailyPoints(readings []database.Reading, intervals []stats.Interval, rises 
 		if metric == "remaining" {
 			if reading, exists := lastScheduled[key]; exists {
 				point.Value, point.Quality, point.Reason, point.Kind = kwhValue(reading.RemainingKWhX10000), "complete", "", "scheduled"
+				point.AmountYuan = seriesBalanceAmount(reading.RemainingCents)
 				if point.Recharge {
 					point.Reason = "recharge_or_adjustment"
 				}
@@ -194,6 +211,7 @@ func dailyPoints(readings []database.Reading, intervals []stats.Interval, rises 
 			}
 			converted := publicSummary(summary)
 			point.Value, point.Quality = converted.EstimatedKWh, converted.Quality
+			point.AmountYuan = seriesUsageAmount(summary.EstimatedKWhX10000, unitPrice)
 			point.Coverage, point.ValidIntervals, point.ExpectedIntervals = &converted.Coverage, &converted.ValidIntervals, &converted.ExpectedIntervals
 			if summary.Quality == "complete" {
 				point.Reason = ""
@@ -215,4 +233,17 @@ func dailyPoints(readings []database.Reading, intervals []stats.Interval, rises 
 		points = append(points, point)
 	}
 	return points, nil
+}
+
+func seriesBalanceAmount(cents int64) *string {
+	amount := fmt.Sprintf("%d.%02d", cents/100, cents%100)
+	return &amount
+}
+
+func seriesUsageAmount(usage, unitPrice *int64) *string {
+	if usage == nil || unitPrice == nil {
+		return nil
+	}
+	amount := stats.UsageCostText(*usage, *unitPrice)
+	return &amount
 }
