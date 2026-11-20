@@ -14,8 +14,8 @@ const props = defineProps<{ series: Record<SeriesMetric, Series> | null; loading
 const range = defineModel<SeriesRange>('range', { required: true })
 const selected = ref<Record<SeriesMetric, boolean>>({ remaining: true, consumption: true })
 const metrics = [
-  { key: 'remaining', label: '剩余电量', color: '#2F8C59' },
-  { key: 'consumption', label: '估算用电', color: '#83A994' },
+  { key: 'remaining', label: '剩余电量', color: '#278263' },
+  { key: 'consumption', label: '估算用电', color: '#AFD3BE' },
 ] as const
 const shown = computed(() => metrics.filter(metric => selected.value[metric.key]).map(metric => {
   const points = props.series?.[metric.key].points ?? []
@@ -94,25 +94,25 @@ function renderChart() {
     textStyle: { fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif' },
     aria: { enabled: true, label: { description: description.value } },
     grid: { left: 8, right: 8, top: 40, bottom: 26, containLabel: true },
-    legend: { show: visible, bottom: 0, padding: 0, selectedMode: false, itemWidth: 16, itemHeight: 8, itemGap: 18, textStyle: { color: '#718276', fontSize: 12 }, data: shown.value.map(metric => ({ name: metric.label, ...(metric.key === 'consumption' ? { icon: 'roundRect' } : {}) })) },
+    legend: { show: visible, bottom: 0, padding: 0, selectedMode: false, itemWidth: 16, itemHeight: 8, itemGap: 18, textStyle: { color: '#617167', fontSize: 12 }, data: shown.value.map(metric => ({ name: metric.label, ...(metric.key === 'consumption' ? { icon: 'roundRect' } : {}) })) },
     tooltip: {
       // Canvas 富文本不会把响应内容作为 HTML 插入页面。
       trigger: 'axis', triggerOn: 'mousemove|click', confine: true, renderMode: 'richText', formatter: pointTooltip,
-      textStyle: { color: '#1E3628' },
+      textStyle: { color: '#3E5147' },
     },
     xAxis: {
       type: 'time', show: visible, min: firstTime === lastTime && lastTime !== undefined ? lastTime - 3600000 : firstTime, max: lastTime,
       splitNumber: range.value === '24h' ? 4 : 5,
-      axisLabel: { color: '#718276', hideOverlap: true, formatter: (value: number) => {
+      axisLabel: { color: '#617167', hideOverlap: true, formatter: (value: number) => {
         if (!timezone) return '—'
         return new Intl.DateTimeFormat('zh-CN', { timeZone: timezone, ...(range.value === '24h' ? { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' } as const : { month: 'numeric', day: 'numeric' } as const) }).format(new Date(value))
       } },
-      axisLine: { lineStyle: { color: '#E1EBE3' } }, axisTick: { show: false }, splitLine: { show: false },
+      axisLine: { lineStyle: { color: '#E7EDE9' } }, axisTick: { show: false }, splitLine: { show: false },
     },
     yAxis: shown.value.map((metric, index) => ({
-      type: 'value', show: visible, position: index === 0 ? 'left' : 'right', name: `${metric.label} (kWh)`, nameTextStyle: { color: '#718276', fontSize: 11, align: index === 0 ? 'left' : 'right' }, nameGap: 16,
+      type: 'value', show: visible, position: index === 0 ? 'left' : 'right', name: `${metric.label} (kWh)`, nameTextStyle: { color: '#617167', fontSize: 11, align: index === 0 ? 'left' : 'right' }, nameGap: 16,
       scale: metric.key === 'remaining', min: metric.key === 'remaining' ? undefined : 0,
-      axisLabel: { color: '#718276' }, splitLine: { show: index === 0, lineStyle: { color: '#E1EBE3' } },
+      axisLabel: { color: '#617167' }, splitLine: { show: index === 0, lineStyle: { color: '#E7EDE9' } },
     })),
     series: shown.value.map((metric, index) => {
       const remaining = metric.key === 'remaining'
@@ -121,7 +121,7 @@ function renderChart() {
         label: { show: true, formatter: '充值变化', position: 'top', fontSize: 11, color: metric.color },
       })) : metric.points.filter(point => point.value === null).map(point => ({
         coord: [new Date(point.timestamp).getTime(), 0], point, metric: metric.key, value: '—', symbol: 'circle', symbolSize: 20,
-        itemStyle: { color: 'transparent' }, label: { show: true, formatter: '—', position: 'top', color: '#718276' },
+        itemStyle: { color: 'transparent' }, label: { show: true, formatter: '—', position: 'top', color: '#617167' },
       }))
       return {
         id: metric.key, name: metric.label, type: remaining ? 'line' : 'bar', yAxisIndex: index,
@@ -182,7 +182,7 @@ onUnmounted(() => {
             </NCheckbox>
           </div>
         </NPopover>
-        <NRadioGroup v-model:value="range" class="trend-range" name="trend-range" aria-label="趋势时间范围" :theme-overrides="{ buttonHeightMedium: '32px', fontSizeMedium: '13px', buttonColorActive: '#E9F6ED', buttonTextColorActive: '#2F8C59' }">
+        <NRadioGroup v-model:value="range" class="trend-range" name="trend-range" aria-label="趋势时间范围" :theme-overrides="{ buttonHeightMedium: '32px', fontSizeMedium: '13px', buttonColorActive: '#EAF4EE', buttonTextColorActive: '#226E54' }">
           <NRadioButton value="24h">24小时</NRadioButton><NRadioButton value="7d">7天</NRadioButton><NRadioButton value="30d">30天</NRadioButton>
         </NRadioGroup>
       </div>
